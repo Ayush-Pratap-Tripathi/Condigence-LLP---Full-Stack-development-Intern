@@ -1,0 +1,39 @@
+# .gitignore for newsSum project
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Django stuff:
+*.log
+db.sqlite3
+media/
+staticfiles/
+
+# Environment variables
+.env
+.env.*
+
+# VS Code settings
+.vscode/
+
+# Node modules and build output
+frontend/node_modules/
+frontend/dist/
+frontend/.env
+frontend/.env.*
+
+# System files
+.DS_Store
+Thumbs.db
+
+# Python virtual environments
+venv/
+ENV/
+
+# Miscellaneous
+*.swp
+*.swo
+
+# Ignore migrations except __init__.py
+backend/summarizer/migrations/[!__init__]*
