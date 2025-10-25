@@ -1,23 +1,39 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [msg, setMsg] = useState("");
+  const navigate = useNavigate(); // hook for navigation
 
   async function handleLogin(e) {
     e.preventDefault();
-    const res = await fetch("http://localhost:8080/api/auth/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password }),
-    });
-    const data = await res.json();
-    if (data.token) {
-      localStorage.setItem("token", data.token);
-      setMsg("Login successful!");
-    } else {
-      setMsg(data.error);
+    try {
+      const res = await fetch("http://localhost:8080/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+
+      const data = await res.json();
+
+      if (data.token) {
+        // Save token to localStorage
+        localStorage.setItem("token", data.token);
+
+        // ✅ If backend returns user info with token (like user id/email), store it
+        if (data.user) {
+          localStorage.setItem("user", JSON.stringify(data.user));
+        }
+
+        // Redirect to Dashboard
+        navigate("/dashboard");
+      } else {
+        setMsg(data.error || "Invalid credentials");
+      }
+    } catch (err) {
+      setMsg(err);
     }
   }
 

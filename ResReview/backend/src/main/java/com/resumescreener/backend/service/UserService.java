@@ -34,7 +34,7 @@ public class UserService {
     public String login(String email, String password) {
         Optional<User> user = userRepository.findByEmail(email);
         if (user.isPresent() && encoder.matches(password, user.get().getPassword())) {
-            return jwtUtil.generateToken(email);
+            return jwtUtil.generateToken(user.get());
         }
         return null; // or throw exception / return message
     }
