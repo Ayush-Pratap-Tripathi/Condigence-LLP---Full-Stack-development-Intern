@@ -1,106 +1,117 @@
+// src/pages/Dashboard.jsx
 import React, { useState } from "react";
 import { analyzeResume } from "../services/api";
-import { useNavigate } from "react-router-dom";
 
 const Dashboard = () => {
   const [jobDescription, setJobDescription] = useState("");
   const [file, setFile] = useState(null);
   const [message, setMessage] = useState("");
   const [result, setResult] = useState(null);
-  const navigate = useNavigate();
+  const [loading, setLoading] = useState(false);
 
-  const token = localStorage.getItem("token");
-  // Optional: if you require login for dashboard, redirect if not logged in
-  // if (!token) navigate("/login");
-
-  const handleFileChange = (e) => {
-    setFile(e.target.files[0]);
-  };
+  const handleFileChange = (e) => setFile(e.target.files[0]);
 
   const handleAnalyze = async (e) => {
     e.preventDefault();
     setMessage("");
     setResult(null);
 
-    if (!file) {
-      setMessage("❌ Please select a resume file first.");
+    if (!file || !jobDescription.trim()) {
+      setMessage("❌ Please fill all fields.");
       return;
     }
-    if (!jobDescription || jobDescription.trim().length < 10) {
-      setMessage("❌ Please paste the job description (at least 10 characters).");
-      return;
-    }
+
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("jobDescription", jobDescription);
+
+    setLoading(true);
+    setMessage("Analyzing your resume...");
 
     try {
-      const formData = new FormData();
-      formData.append("file", file);
-      formData.append("jobDescription", jobDescription);
-
-      setMessage("Analyzing... this may take a few seconds.");
       const data = await analyzeResume(formData);
-
-      setResult({
-        atsScore: data.atsScore,
-        matchPercentage: data.matchPercentage,
-        rating: data.rating,
-        id: data.id,
-      });
+      setResult(data);
       setMessage("✅ Analysis complete");
     } catch (err) {
       console.error(err);
-      setMessage("❌ Analysis failed: " + (err.response?.data?.error || err.message));
+      setMessage("❌ Analysis failed");
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <div className="p-6 max-w-3xl mx-auto">
-      <h2 className="text-2xl font-semibold mb-4">Resume Analyzer Dashboard</h2>
+    <div className="min-h-screen bg-gradient-to-b from-white to-blue-50 animate-fadeIn">
+      <div className="max-w-4xl mx-auto py-12 px-4">
+        <div className="bg-white shadow-lg rounded-2xl p-6 transition-all duration-500 hover:shadow-2xl animate-slideUp">
+          <h2 className="text-3xl font-semibold text-gray-800 mb-4">
+            Resume Analyzer
+          </h2>
 
-      <form onSubmit={handleAnalyze} className="space-y-4">
-        <div>
-          <label className="block font-medium">Job Description</label>
-          <textarea
-            value={jobDescription}
-            onChange={(e) => setJobDescription(e.target.value)}
-            rows={8}
-            placeholder="Paste the job description here..."
-            className="w-full border p-2 rounded"
-            required
-          />
-        </div>
-
-        <div>
-          <label className="block font-medium">Resume (PDF / DOCX / TXT)</label>
-          <input type="file" accept=".pdf,.docx,.doc,.txt" onChange={handleFileChange} />
-        </div>
-
-        <div>
-          <button
-            type="submit"
-            className="px-4 py-2 rounded bg-blue-600 text-white"
-          >
-            Analyze Resume
-          </button>
-        </div>
-      </form>
-
-      {message && <p className="mt-4">{message}</p>}
-
-      {result && (
-        <div className="mt-6 p-4 border rounded bg-gray-50">
-          <h3 className="text-xl font-semibold">Results</h3>
-          <p><strong>ATS Score:</strong> {result.atsScore}%</p>
-          <div className="w-full bg-gray-200 rounded h-4 mt-2">
-            <div
-              style={{ width: `${Math.max(0, Math.min(100, result.atsScore))}%` }}
-              className={`h-4 rounded ${result.atsScore >= 85 ? "bg-green-600" : result.atsScore >= 70 ? "bg-yellow-500" : "bg-red-500"}`}
+          <form onSubmit={handleAnalyze} className="space-y-4">
+            <textarea
+              value={jobDescription}
+              onChange={(e) => setJobDescription(e.target.value)}
+              rows={6}
+              placeholder="Paste the job description here..."
+              className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-blue-400 transition-all"
             />
-          </div>
-          <p className="mt-2"><strong>Match percentage (embedding):</strong> {result.matchPercentage}%</p>
-          <p><strong>Rating:</strong> {result.rating}</p>
-          <p className="text-sm text-gray-600 mt-2">Result id: {result.id}</p>
+
+            <input
+              type="file"
+              accept=".pdf,.doc,.docx,.txt"
+              onChange={handleFileChange}
+              className="text-sm"
+            />
+
+            <button
+              type="submit"
+              className="w-full bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 transition-all shadow-md"
+              disabled={loading}
+            >
+              {loading ? (
+                <div className="flex justify-center items-center gap-2">
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  Analyzing...
+                </div>
+              ) : (
+                "Analyze Resume"
+              )}
+            </button>
+          </form>
+
+          {message && <p className="mt-4 text-center text-sm">{message}</p>}
+
+          {result && (
+            <div className="mt-8 border-t pt-6 animate-fadeIn">
+              <h3 className="text-xl font-semibold text-gray-800">Results</h3>
+              <div className="mt-4 space-y-2">
+                <p>
+                  <strong>ATS Score:</strong> {result.atsScore || 0}%
+                </p>
+                <div className="w-full bg-gray-200 rounded h-4 overflow-hidden">
+                  <div
+                    style={{ width: `${Math.min(100, result.atsScore)}%` }}
+                    className={`h-4 transition-all duration-700 ${
+                      result.atsScore >= 80
+                        ? "bg-green-600"
+                        : result.atsScore >= 60
+                        ? "bg-yellow-500"
+                        : "bg-red-500"
+                    }`}
+                  />
+                </div>
+                <p>
+                  <strong>Match %:</strong> {result.matchPercentage || 0}%
+                </p>
+                <p>
+                  <strong>Rating:</strong> {result.rating || "N/A"}
+                </p>
+              </div>
+            </div>
+          )}
         </div>
-      )}
+      </div>
     </div>
   );
 };
