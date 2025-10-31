@@ -24,9 +24,11 @@ public class ResumeService {
 
     /**
      * Main method to analyze resume file and job description.
-     * Returns a map containing atsScore, matchPercentage, rating and saved resume id.
+     * Returns a map containing atsScore, matchPercentage, rating and saved resume
+     * id.
      */
-    public Map<String, Object> analyzeResume(MultipartFile file, String jobDescription, String userId) throws Exception {
+    public Map<String, Object> analyzeResume(MultipartFile file, String jobDescription, String userId)
+            throws Exception {
         if (file == null || file.isEmpty()) {
             throw new IllegalArgumentException("No file uploaded");
         }
@@ -36,19 +38,15 @@ public class ResumeService {
             text = tika.parseToString(is);
         }
 
-        // 2) get embeddings for resume and job description
-        double[] resumeEmbedding = hfClient.getEmbedding(truncateForEmbedding(text));
-        double[] jdEmbedding = hfClient.getEmbedding(truncateForEmbedding(jobDescription));
-
-        // 3) compute cosine similarity
-        double similarity = 0.0;
-        if (resumeEmbedding.length > 0 && jdEmbedding.length > 0) {
-            similarity = cosineSimilarity(resumeEmbedding, jdEmbedding);
-        }
+        // 2) Get direct similarity score from HF API
+        double similarity = hfClient.getSimilarityScore(
+                truncateForEmbedding(jobDescription),
+                truncateForEmbedding(text));
 
         double matchPercentage = Math.round(similarity * 10000.0) / 100.0; // two decimal percent
 
-        // 4) compute simple ATS score: weight combination of keyword overlap and embedding similarity
+        // 4) compute simple ATS score: weight combination of keyword overlap and
+        // embedding similarity
         double keywordScore = computeKeywordOverlapScore(text, jobDescription); // 0..100
         double atsScore = Math.round((0.5 * keywordScore + 0.5 * (matchPercentage)) * 100.0) / 100.0;
 
@@ -82,7 +80,8 @@ public class ResumeService {
 
     // helper: very small text truncation to avoid excessively long inputs for HF
     private String truncateForEmbedding(String s) {
-        if (s == null) return "";
+        if (s == null)
+            return "";
         int max = 1600; // characters limit for safety; tune as needed
         return s.length() > max ? s.substring(0, max) : s;
     }
@@ -97,7 +96,8 @@ public class ResumeService {
                 na += a[i] * a[i];
                 nb += b[i] * b[i];
             }
-            if (na == 0 || nb == 0) return 0.0;
+            if (na == 0 || nb == 0)
+                return 0.0;
             return dot / (Math.sqrt(na) * Math.sqrt(nb));
         }
         double dot = 0.0, norma = 0.0, normb = 0.0;
@@ -106,13 +106,16 @@ public class ResumeService {
             norma += a[i] * a[i];
             normb += b[i] * b[i];
         }
-        if (norma == 0 || normb == 0) return 0.0;
+        if (norma == 0 || normb == 0)
+            return 0.0;
         return dot / (Math.sqrt(norma) * Math.sqrt(normb));
     }
 
     private double computeKeywordOverlapScore(String resumeText, String jobDescription) {
-        if (jobDescription == null || jobDescription.trim().isEmpty()) return 50.0;
-        if (resumeText == null) resumeText = "";
+        if (jobDescription == null || jobDescription.trim().isEmpty())
+            return 50.0;
+        if (resumeText == null)
+            resumeText = "";
         // simple tokenization: extract words from both, remove stopwords minimally
         Set<String> jdTokens = Arrays.stream(jobDescription.toLowerCase().split("\\W+"))
                 .filter(s -> s.length() > 2)
@@ -121,16 +124,20 @@ public class ResumeService {
                 .filter(s -> s.length() > 2)
                 .collect(Collectors.toSet());
 
-        if (jdTokens.isEmpty()) return 50.0;
+        if (jdTokens.isEmpty())
+            return 50.0;
         long matchCount = jdTokens.stream().filter(resumeTokens::contains).count();
         double ratio = (double) matchCount / jdTokens.size();
         return Math.min(100.0, Math.round(ratio * 10000.0) / 100.0); // 0..100
     }
 
     private String deriveRating(double atsScore) {
-        if (atsScore >= 85) return "Excellent";
-        if (atsScore >= 70) return "Good";
-        if (atsScore >= 50) return "Average";
+        if (atsScore >= 85)
+            return "Excellent";
+        if (atsScore >= 70)
+            return "Good";
+        if (atsScore >= 50)
+            return "Average";
         return "Poor";
     }
 }

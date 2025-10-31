@@ -4,9 +4,11 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.core.ParameterizedTypeReference;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Collections;
 
 @Component
 public class HuggingFaceClient {
@@ -14,77 +16,64 @@ public class HuggingFaceClient {
     @Value("${huggingface.api.key}")
     private String hfApiKey;
 
-    // keep this as model URL, NOT pipeline URL
     @Value("${huggingface.api.url}")
     private String hfApiUrl;
 
     private final RestTemplate restTemplate = new RestTemplate();
 
     /**
-     * Calls Hugging Face Inference API for feature extraction embeddings.
+     * Calls Hugging Face Inference API for text similarity between job description
+     * and resume.
      */
-    public double[] getEmbedding(String text) {
-        if (text == null || text.trim().isEmpty()) return new double[0];
+    public double getSimilarityScore(String jobDescription, String resumeText) {
+        if (jobDescription == null || resumeText == null)
+            return 0.0;
 
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.setAccept(Collections.singletonList(MediaType.APPLICATION_JSON));
         headers.setBearerAuth(hfApiKey);
 
-        // 👇 Explicitly specify "feature-extraction" task
+        // ✅ Send both jobDescription and resumeText properly formatted
         Map<String, Object> body = Map.of(
-                "inputs", text,
-                "task", "feature-extraction",
+                "inputs", Map.of(
+                        "source_sentence", jobDescription,
+                        "sentences", List.of(resumeText)
+                ),
                 "options", Map.of("wait_for_model", true)
         );
 
         HttpEntity<Map<String, Object>> entity = new HttpEntity<>(body, headers);
 
         try {
-            ResponseEntity<Object> response = restTemplate.exchange(
+            // ✅ Expect a list of doubles in response (not list of maps)
+            ResponseEntity<List<Double>> response = restTemplate.exchange(
                     hfApiUrl,
                     HttpMethod.POST,
                     entity,
-                    Object.class
+                    new ParameterizedTypeReference<List<Double>>() {}
             );
 
             if (response.getStatusCode() != HttpStatus.OK) {
                 System.err.println("⚠️ HF API returned status: " + response.getStatusCode());
-                return new double[0];
+                System.err.println("Response body: " + response.getBody());
+                return 0.0;
             }
 
-            Object respBody = response.getBody();
-            if (respBody instanceof List) {
-                List<?> outer = (List<?>) respBody;
-                Object first = outer.get(0);
-                if (first instanceof List) {
-                    return toDoubleArray((List<?>) first);
-                } else if (first instanceof Number) {
-                    return toDoubleArray(outer);
-                }
+            List<Double> responseBody = response.getBody();
+            if (responseBody != null && !responseBody.isEmpty()) {
+                // ✅ The first element is the similarity score
+                return responseBody.get(0);
             }
 
+        } catch (org.springframework.web.client.HttpClientErrorException httpEx) {
+            System.err.println("⚠️ HF HTTP error: " + httpEx.getStatusCode());
+            System.err.println("HF response body: " + httpEx.getResponseBodyAsString());
         } catch (Exception e) {
             e.printStackTrace();
         }
 
-        System.err.println("⚠️ No embedding returned for text: " + text.substring(0, Math.min(60, text.length())));
-        return new double[0];
-    }
-
-    private double[] toDoubleArray(List<?> list) {
-        double[] arr = new double[list.size()];
-        for (int i = 0; i < list.size(); i++) {
-            Object o = list.get(i);
-            if (o instanceof Number) {
-                arr[i] = ((Number) o).doubleValue();
-            } else {
-                try {
-                    arr[i] = Double.parseDouble(o.toString());
-                } catch (Exception ex) {
-                    arr[i] = 0.0;
-                }
-            }
-        }
-        return arr;
+        System.err.println("⚠️ No similarity score returned for inputs.");
+        return 0.0;
     }
 }
