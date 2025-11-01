@@ -1,6 +1,8 @@
+// src/components/ResumesTable.jsx
 import React, { useEffect, useState } from "react";
 import { getUserResumes } from "../services/api";
 
+// --- Helper extraction functions (same heuristics as before) ---
 function extractEmail(text = "") {
   const emailRegex = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i;
   const m = text.match(emailRegex);
@@ -48,21 +50,23 @@ function extractJobRole(jobDescription = "", text = "") {
     }
     return lines[0] ? lines[0].slice(0, 80) : "";
   }
-  const t = text;
+  const t = text || "";
   const m1 = t.match(/(Objective|Career Objective|Seeking)\s*[:\-]?\s*(.+)/i);
   if (m1 && m1[2]) return m1[2].split(/[.|\n]/)[0].trim();
   return "";
 }
 
+// --- MAIN COMPONENT ---
 export default function ResumesTable({ refreshTrigger }) {
   const [resumes, setResumes] = useState([]);
-  const [allResumes, setAllResumes] = useState([]);
+  const [allResumes, setAllResumes] = useState([]); // store all resumes (for filtering)
+  const [filterRole, setFilterRole] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [filterRole, setFilterRole] = useState("");
 
   const loadResumes = async () => {
     setLoading(true);
+    setError("");
     try {
       const userRaw = localStorage.getItem("user");
       if (!userRaw) {
@@ -76,23 +80,39 @@ export default function ResumesTable({ refreshTrigger }) {
       const data = await getUserResumes(userId);
       const arr = Array.isArray(data) ? data : [];
 
+      // Map with robust handling: prefer explicit fields from backend,
+      // fallback to extraction heuristics (extractedText/jobDescription)
       const mapped = arr.map((r) => {
         const text = r.extractedText || "";
         const jobDesc = r.jobDescription || "";
         return {
-          id: r.id || r._id,
+          id: r.id || r._id || r.ID || null,
           fileName: r.fileName || "",
-          atsScore: r.atsScore || 0,
-          matchPercentage: r.matchPercentage || 0,
+          uploadedAt: r.uploadedAt || r.uploaded_at || null,
+          atsScore:
+            typeof r.atsScore === "number"
+              ? r.atsScore
+              : r.atsScore
+              ? Number(r.atsScore)
+              : 0,
+          matchPercentage:
+            typeof r.matchPercentage === "number"
+              ? r.matchPercentage
+              : r.matchPercentage
+              ? Number(r.matchPercentage)
+              : 0,
           rating: r.rating || "",
           candidateName: r.candidateName || extractName(text),
           candidateEmail: r.candidateEmail || extractEmail(text),
           candidatePhone: r.candidatePhone || extractPhone(text),
           jobRole: r.jobRole || extractJobRole(jobDesc, text),
+          raw: r,
         };
       });
 
+      // Sort by matchPercentage desc (highest first)
       mapped.sort((a, b) => (b.matchPercentage || 0) - (a.matchPercentage || 0));
+
       setResumes(mapped);
       setAllResumes(mapped);
     } catch (err) {
@@ -105,12 +125,16 @@ export default function ResumesTable({ refreshTrigger }) {
 
   useEffect(() => {
     loadResumes();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [refreshTrigger]);
 
   const handleFilter = () => {
-    if (!filterRole.trim()) return;
+    if (!filterRole.trim()) {
+      // if nothing entered, do nothing (or you could show all)
+      return;
+    }
     const filtered = allResumes.filter((r) =>
-      r.jobRole?.toLowerCase().includes(filterRole.toLowerCase())
+      (r.jobRole || "").toLowerCase().includes(filterRole.toLowerCase())
     );
     setResumes(filtered);
   };
@@ -123,44 +147,38 @@ export default function ResumesTable({ refreshTrigger }) {
   if (loading) return <div className="py-6 text-center">Loading resumes...</div>;
   if (error) return <div className="py-6 text-red-600 text-center">{error}</div>;
 
-  const hasResumes = allResumes.length > 0;
-  const noResults = hasResumes && resumes.length === 0;
+  // When user has no resumes at all
+  if (!allResumes.length) {
+    return <div className="py-6 text-center text-gray-600">No resumes uploaded yet.</div>;
+  }
 
   return (
-    <div className="overflow-x-auto mt-6">
-      {/* 🔍 Filter Controls (always visible) */}
-      <div className="flex items-center gap-2 mb-4">
+    <div className="bg-white/70 backdrop-blur-2xl rounded-3xl shadow-2xl p-6 transition-all duration-500 hover:shadow-blue-200/50 border border-white/40">
+      {/* 🔍 Filter Controls */}
+      <div className="flex flex-wrap items-center gap-3 mb-6">
         <input
           type="text"
           value={filterRole}
           onChange={(e) => setFilterRole(e.target.value)}
           placeholder="Filter by Job Role"
-          className="p-2 border rounded-lg w-64 focus:ring-2 focus:ring-blue-500"
+          className="p-3 rounded-xl bg-white/80 border border-blue-100 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all w-full md:w-64"
         />
         <button
           onClick={handleFilter}
-          className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-all"
+          className="bg-blue-600 text-white px-4 py-2 rounded-xl hover:bg-blue-700 transition-all shadow-md"
         >
           Filter
         </button>
         <button
           onClick={handleShowAll}
-          className="bg-gray-300 text-gray-800 px-4 py-2 rounded-lg hover:bg-gray-400 transition-all"
+          className="bg-gray-200 text-gray-800 px-4 py-2 rounded-xl hover:bg-gray-300 transition-all"
         >
           Show All
         </button>
       </div>
 
-      {/* 📋 Conditional Table or Messages */}
-      {!hasResumes ? (
-        <div className="py-6 text-center text-gray-600">
-          No resumes uploaded yet.
-        </div>
-      ) : noResults ? (
-        <div className="py-6 text-center text-gray-600">
-          No resumes match the selected job role.
-        </div>
-      ) : (
+      {/* 📋 Resume Table */}
+      <div className="overflow-x-auto">
         <table className="min-w-full bg-white rounded-lg shadow-sm">
           <thead className="bg-blue-50">
             <tr>
@@ -176,32 +194,27 @@ export default function ResumesTable({ refreshTrigger }) {
           </thead>
           <tbody>
             {resumes.map((r, idx) => (
-              <tr
-                key={r.id || idx}
-                className={idx % 2 === 0 ? "bg-white" : "bg-gray-50"}
-              >
+              <tr key={r.id || idx} className={idx % 2 === 0 ? "bg-white" : "bg-gray-50"}>
                 <td className="p-3 align-top">{idx + 1}</td>
                 <td className="p-3 align-top">
-                  <div className="font-medium">
-                    {r.candidateName || "Unknown"}
-                  </div>
+                  <div className="font-medium">{r.candidateName || "Unknown"}</div>
                   <div className="text-sm text-gray-500">{r.fileName}</div>
                 </td>
                 <td className="p-3 align-top">{r.candidatePhone || "-"}</td>
                 <td className="p-3 align-top">{r.candidateEmail || "-"}</td>
                 <td className="p-3 align-top">{r.jobRole || "-"}</td>
                 <td className="p-3 align-top text-right">
-                  {r.atsScore?.toFixed(1)}
+                  {r.atsScore != null ? Number(r.atsScore).toFixed(1) : "-"}
                 </td>
                 <td className="p-3 align-top text-right">
-                  {r.matchPercentage?.toFixed(1)}
+                  {r.matchPercentage != null ? Number(r.matchPercentage).toFixed(1) : "-"}
                 </td>
                 <td className="p-3 align-top">{r.rating || "-"}</td>
               </tr>
             ))}
           </tbody>
         </table>
-      )}
+      </div>
     </div>
   );
 }

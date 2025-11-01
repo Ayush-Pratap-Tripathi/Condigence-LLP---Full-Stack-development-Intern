@@ -2,6 +2,8 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { registerUser } from "../services/api";
+import logo from "../assets/logo.svg";
+import depictable from "../assets/Depictable.png";
 
 export default function Register() {
   const [form, setForm] = useState({ username: "", email: "", password: "" });
@@ -11,82 +13,114 @@ export default function Register() {
 
   async function handleRegister(e) {
     e.preventDefault();
+    setMsg("");
     setLoading(true);
     try {
       const data = await registerUser(form);
-      // handle plain-string or object responses
       const message =
         typeof data === "string"
           ? data
           : data?.message || "Registration complete";
-
-      alert(message); // show success
-      navigate("/login"); // redirect
+      alert(message);
+      navigate("/login");
     } catch (err) {
       console.error(err);
-      const msg =
+      const errorMsg =
         err?.response?.data?.message || err?.message || "Registration failed";
-      alert(msg); // show error
+      setMsg(errorMsg);
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-blue-50 to-white animate-fadeIn">
-      <form
-        onSubmit={handleRegister}
-        className="w-full max-w-md bg-white shadow-xl rounded-2xl p-8 space-y-6 transform transition-all duration-500 hover:scale-[1.01]"
-      >
-        <h2 className="text-2xl font-semibold text-center text-blue-700">
-          Register
-        </h2>
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-white via-blue-50 to-blue-100 relative overflow-hidden">
+      {/* Soft gradient shapes for background ambience */}
+      <div className="absolute w-96 h-96 bg-blue-200 rounded-full blur-3xl opacity-30 -top-10 -left-10 animate-pulse"></div>
+      <div className="absolute w-80 h-80 bg-blue-300 rounded-full blur-3xl opacity-20 bottom-10 right-10 animate-pulse"></div>
 
-        <input
-          value={form.username}
-          onChange={(e) => setForm({ ...form, username: e.target.value })}
-          placeholder="Username"
-          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
-          required
-        />
+      <div className="flex flex-col md:flex-row items-center justify-between w-[90%] md:w-[80%] lg:w-[70%] xl:w-[60%] bg-white/60 backdrop-blur-xl rounded-3xl shadow-2xl p-10 transform transition-all duration-700 hover:shadow-blue-300/50 hover:scale-[1.01] animate-fadeIn">
+        {/* Left Section (Form) */}
+        <div className="w-full md:w-1/2 flex flex-col items-center space-y-6">
+          {/* Logo */}
+          <img
+            src={logo}
+            alt="ResReview Logo"
+            className="w-16 h-16 mb-2 animate-float"
+          />
 
-        <input
-          value={form.email}
-          onChange={(e) => setForm({ ...form, email: e.target.value })}
-          placeholder="Email"
-          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
-          required
-        />
+          {/* Header Text */}
+          <h2 className="text-3xl font-bold text-blue-700 text-center">
+            Create Account
+          </h2>
+          <p className="text-center text-gray-600 text-sm max-w-sm">
+            Join <span className="text-blue-700 font-semibold">ResReview</span>{" "}
+            and unlock AI-powered insights for smarter hiring decisions.
+          </p>
 
-        <input
-          type="password"
-          value={form.password}
-          onChange={(e) => setForm({ ...form, password: e.target.value })}
-          placeholder="Password"
-          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
-          required
-        />
+          {/* Registration Form */}
+          <form onSubmit={handleRegister} className="w-full space-y-4 mt-4">
+            <input
+              value={form.username}
+              onChange={(e) => setForm({ ...form, username: e.target.value })}
+              placeholder="Username"
+              className="w-full px-4 py-3 bg-white/70 border border-blue-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder-gray-400 text-gray-800 transition-all"
+              required
+            />
 
-        <button
-          type="submit"
-          className="w-full border border-gray-300 text-black py-3 rounded-lg hover:bg-blue-50 transition-all font-medium shadow-sm"
-          disabled={loading}
-        >
-          {loading ? "Registering..." : "Register"}
-        </button>
+            <input
+              type="email"
+              value={form.email}
+              onChange={(e) => setForm({ ...form, email: e.target.value })}
+              placeholder="Email"
+              className="w-full px-4 py-3 bg-white/70 border border-blue-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder-gray-400 text-gray-800 transition-all"
+              required
+            />
 
-        <div className="text-center text-sm text-gray-600">
-          Already have an account?{" "}
-          <Link
-            to="/login"
-            className="font-medium text-white bg-blue-600 px-3 py-1 rounded hover:bg-blue-700 transition-all"
-          >
-            Login
-          </Link>
+            <input
+              type="password"
+              value={form.password}
+              onChange={(e) => setForm({ ...form, password: e.target.value })}
+              placeholder="Password"
+              className="w-full px-4 py-3 bg-white/70 border border-blue-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder-gray-400 text-gray-800 transition-all"
+              required
+            />
+
+            <button
+              type="submit"
+              className="w-full bg-blue-600 text-white py-3 rounded-lg font-medium shadow-lg hover:bg-blue-700 hover:shadow-xl transition-all duration-300"
+              disabled={loading}
+            >
+              {loading ? "Registering..." : "Register"}
+            </button>
+
+            <div className="text-center text-sm text-gray-600">
+              Already have an account?{" "}
+              <Link
+                to="/login"
+                className="font-medium text-blue-700 hover:text-blue-800 transition-colors"
+              >
+                Login
+              </Link>
+            </div>
+
+            {msg && (
+              <p className="text-center text-sm text-red-600 mt-2 animate-fadeIn">
+                {msg}
+              </p>
+            )}
+          </form>
         </div>
 
-        {msg && <p className="text-center text-sm text-gray-600 mt-2">{msg}</p>}
-      </form>
+        {/* Right Section (Illustration) */}
+        <div className="hidden md:flex w-1/2 justify-center items-center">
+          <img
+            src={depictable}
+            alt="Resume Illustration"
+            className="w-4/5 max-w-sm drop-shadow-2xl animate-slideInRight"
+          />
+        </div>
+      </div>
     </div>
   );
 }

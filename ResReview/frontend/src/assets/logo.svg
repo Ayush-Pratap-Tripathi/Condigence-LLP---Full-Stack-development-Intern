@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+  <!-- Gradient Definition -->
+  <defs>
+    <linearGradient id="blueGradient" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#007BFF"/>
+      <stop offset="100%" stop-color="#00C6FF"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Outer Rounded Document Shape -->
+  <rect x="30" y="30" width="140" height="140" rx="20" ry="20" fill="none" stroke="url(#blueGradient)" stroke-width="8"/>
+
+  <!-- Stylized "R" for ResReview -->
+  <path d="M75 65h35c15 0 25 10 25 25s-10 25-25 25H90l30 35" 
+        fill="none" 
+        stroke="url(#blueGradient)" 
+        stroke-width="10" 
+        stroke-linecap="round" 
+        stroke-linejoin="round"/>
+
+  <!-- Checkmark to symbolize 'Review' / Approval -->
+  <path d="M65 135l15 15 35-35" 
+        fill="none" 
+        stroke="url(#blueGradient)" 
+        stroke-width="8" 
+        stroke-linecap="round" 
+        stroke-linejoin="round"/>
+
+  <!-- Subtle Glow -->
+  <circle cx="100" cy="100" r="90" fill="none" stroke="url(#blueGradient)" stroke-opacity="0.15" stroke-width="2"/>
+</svg>
