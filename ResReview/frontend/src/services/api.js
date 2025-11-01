@@ -8,8 +8,33 @@ const api = axios.create({
   // withCredentials: true, // enable if your backend uses cookies
 });
 
+// ✅ 1. Attach token automatically to every request
+api.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem("token");
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
+
+// ✅ 2. Handle expired token globally
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response && error.response.status === 401) {
+      // Token expired or unauthorized
+      localStorage.removeItem("token");
+      alert("Session expired. Please log in again.");
+      window.location.href = "/login";
+    }
+    return Promise.reject(error);
+  }
+);
+
 export async function analyzeResume(formData) {
-  // expects formData (FormData) with 'file' and 'jobDescription'
   const token = localStorage.getItem("token");
   const headers = {
     "Content-Type": "multipart/form-data",
@@ -19,7 +44,6 @@ export async function analyzeResume(formData) {
     const res = await api.post("/resumes/analyze", formData, { headers });
     return res.data;
   } catch (err) {
-    // normalize error
     if (err.response) throw err.response.data || err.response;
     throw err;
   }
@@ -46,3 +70,5 @@ export async function getUserResumes(userId) {
   });
   return res.data;
 }
+
+export default api;

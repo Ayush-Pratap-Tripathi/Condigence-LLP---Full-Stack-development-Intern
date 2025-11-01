@@ -17,8 +17,10 @@ public class Resume {
     private String rating;
     private String extractedText; // optional store
     private String jobDescription;
+    private String jobRole;
 
-    public Resume() {}
+    public Resume() {
+    }
 
     // getters and setters
 
@@ -26,37 +28,79 @@ public class Resume {
         return id;
     }
 
-    public void setId(String id) { this.id = id; }
+    public String getJobRole() {
+        return jobRole;
+    }
 
-    public String getUserId() { return userId; }
+    public void setJobRole(String jobRole) {
+        this.jobRole = jobRole;
+    }
 
-    public void setUserId(String userId) { this.userId = userId; }
+    public void setId(String id) {
+        this.id = id;
+    }
 
-    public String getFileName() { return fileName; }
+    public String getUserId() {
+        return userId;
+    }
 
-    public void setFileName(String fileName) { this.fileName = fileName; }
+    public void setUserId(String userId) {
+        this.userId = userId;
+    }
 
-    public Date getUploadedAt() { return uploadedAt; }
+    public String getFileName() {
+        return fileName;
+    }
 
-    public void setUploadedAt(Date uploadedAt) { this.uploadedAt = uploadedAt; }
+    public void setFileName(String fileName) {
+        this.fileName = fileName;
+    }
 
-    public double getAtsScore() { return atsScore; }
+    public Date getUploadedAt() {
+        return uploadedAt;
+    }
 
-    public void setAtsScore(double atsScore) { this.atsScore = atsScore; }
+    public void setUploadedAt(Date uploadedAt) {
+        this.uploadedAt = uploadedAt;
+    }
 
-    public double getMatchPercentage() { return matchPercentage; }
+    public double getAtsScore() {
+        return atsScore;
+    }
 
-    public void setMatchPercentage(double matchPercentage) { this.matchPercentage = matchPercentage; }
+    public void setAtsScore(double atsScore) {
+        this.atsScore = atsScore;
+    }
 
-    public String getRating() { return rating; }
+    public double getMatchPercentage() {
+        return matchPercentage;
+    }
 
-    public void setRating(String rating) { this.rating = rating; }
+    public void setMatchPercentage(double matchPercentage) {
+        this.matchPercentage = matchPercentage;
+    }
 
-    public String getExtractedText() { return extractedText; }
+    public String getRating() {
+        return rating;
+    }
 
-    public void setExtractedText(String extractedText) { this.extractedText = extractedText; }
+    public void setRating(String rating) {
+        this.rating = rating;
+    }
 
-    public String getJobDescription() { return jobDescription; }
+    public String getExtractedText() {
+        return extractedText;
+    }
 
-    public void setJobDescription(String jobDescription) { this.jobDescription = jobDescription; }
+    public void setExtractedText(String extractedText) {
+        this.extractedText = extractedText;
+    }
+
+    public String getJobDescription() {
+        return jobDescription;
+    }
+
+    public void setJobDescription(String jobDescription) {
+        this.jobDescription = jobDescription;
+    }
 }

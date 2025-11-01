@@ -11,21 +11,22 @@ export default function Register() {
 
   async function handleRegister(e) {
     e.preventDefault();
-    setMsg("");
     setLoading(true);
     try {
       const data = await registerUser(form);
-      if (data?.token) {
-        localStorage.setItem("token", data.token);
-        if (data.user) localStorage.setItem("user", JSON.stringify(data.user));
-        navigate("/dashboard");
-      } else {
-        setMsg(data?.message || "Registered successfully!");
-        navigate("/login");
-      }
+      // handle plain-string or object responses
+      const message =
+        typeof data === "string"
+          ? data
+          : data?.message || "Registration complete";
+
+      alert(message); // show success
+      navigate("/login"); // redirect
     } catch (err) {
       console.error(err);
-      setMsg(err?.message || "Registration failed");
+      const msg =
+        err?.response?.data?.message || err?.message || "Registration failed";
+      alert(msg); // show error
     } finally {
       setLoading(false);
     }
@@ -37,7 +38,9 @@ export default function Register() {
         onSubmit={handleRegister}
         className="w-full max-w-md bg-white shadow-xl rounded-2xl p-8 space-y-6 transform transition-all duration-500 hover:scale-[1.01]"
       >
-        <h2 className="text-2xl font-semibold text-center text-blue-700">Register</h2>
+        <h2 className="text-2xl font-semibold text-center text-blue-700">
+          Register
+        </h2>
 
         <input
           value={form.username}

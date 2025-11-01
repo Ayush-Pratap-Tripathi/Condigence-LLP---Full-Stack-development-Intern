@@ -27,7 +27,7 @@ public class ResumeService {
      * Returns a map containing atsScore, matchPercentage, rating and saved resume
      * id.
      */
-    public Map<String, Object> analyzeResume(MultipartFile file, String jobDescription, String userId)
+    public Map<String, Object> analyzeResume(MultipartFile file, String jobDescription, String jobRole, String userId)
             throws Exception {
         if (file == null || file.isEmpty()) {
             throw new IllegalArgumentException("No file uploaded");
@@ -63,6 +63,7 @@ public class ResumeService {
         resume.setRating(rating);
         resume.setExtractedText(text.length() > 100000 ? text.substring(0, 100000) : text); // cap stored text
         resume.setJobDescription(jobDescription);
+        resume.setJobRole(jobRole);
 
         Resume saved = resumeRepository.save(resume);
 

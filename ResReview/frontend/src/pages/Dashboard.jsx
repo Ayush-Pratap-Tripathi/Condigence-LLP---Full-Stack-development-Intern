@@ -1,5 +1,6 @@
 // src/pages/Dashboard.jsx
-import React, { useState } from "react";
+import ResumesTable from "../components/ResumesTable";
+import React, { useEffect, useState } from "react";
 import { analyzeResume } from "../services/api";
 
 const Dashboard = () => {
@@ -8,8 +9,19 @@ const Dashboard = () => {
   const [message, setMessage] = useState("");
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [jobRole, setJobRole] = useState("");
+  const [refreshTrigger, setRefreshTrigger] = useState(0); // 👈 triggers table reload
 
   const handleFileChange = (e) => setFile(e.target.files[0]);
+
+  useEffect(() => {
+  const token = localStorage.getItem("token");
+  if (!token) {
+    alert("Please log in to access the dashboard.");
+    window.location.href = "/login";
+  }
+}, []);
+
 
   const handleAnalyze = async (e) => {
     e.preventDefault();
@@ -24,6 +36,7 @@ const Dashboard = () => {
     const formData = new FormData();
     formData.append("file", file);
     formData.append("jobDescription", jobDescription);
+    formData.append("jobRole", jobRole);
 
     setLoading(true);
     setMessage("Analyzing your resume...");
@@ -32,6 +45,9 @@ const Dashboard = () => {
       const data = await analyzeResume(formData);
       setResult(data);
       setMessage("✅ Analysis complete");
+
+      // 🔥 Trigger table refresh instantly after success
+      setRefreshTrigger((prev) => prev + 1);
     } catch (err) {
       console.error(err);
       setMessage("❌ Analysis failed");
@@ -43,12 +59,27 @@ const Dashboard = () => {
   return (
     <div className="min-h-screen bg-gradient-to-b from-white to-blue-50 animate-fadeIn">
       <div className="max-w-4xl mx-auto py-12 px-4">
+        {/* Resume Analyzer Card */}
         <div className="bg-white shadow-lg rounded-2xl p-6 transition-all duration-500 hover:shadow-2xl animate-slideUp">
           <h2 className="text-3xl font-semibold text-gray-800 mb-4">
             Resume Analyzer
           </h2>
 
-          <form onSubmit={handleAnalyze} className="space-y-4">
+          {/* Job Role input */}
+          <div className="mt-4">
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Job Role
+            </label>
+            <input
+              type="text"
+              value={jobRole}
+              onChange={(e) => setJobRole(e.target.value)}
+              placeholder="e.g., Frontend Developer"
+              className="w-full p-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
+
+          <form onSubmit={handleAnalyze} className="space-y-4 mt-4">
             <textarea
               value={jobDescription}
               onChange={(e) => setJobDescription(e.target.value)}
@@ -80,7 +111,19 @@ const Dashboard = () => {
             </button>
           </form>
 
-          {message && <p className="mt-4 text-center text-sm">{message}</p>}
+          {message && (
+            <p
+              className={`mt-4 text-center text-sm ${
+                message.startsWith("✅")
+                  ? "text-green-600"
+                  : message.startsWith("❌")
+                  ? "text-red-600"
+                  : "text-gray-600"
+              }`}
+            >
+              {message}
+            </p>
+          )}
 
           {result && (
             <div className="mt-8 border-t pt-6 animate-fadeIn">
@@ -110,6 +153,16 @@ const Dashboard = () => {
               </div>
             </div>
           )}
+        </div>
+
+        {/* 🔽 Resume Table Section */}
+        <div className="mt-12">
+          <h3 className="text-lg font-semibold text-gray-700 mb-3">
+            Your Uploaded Resumes
+          </h3>
+
+          {/* Pass refreshTrigger so table updates instantly */}
+          <ResumesTable refreshTrigger={refreshTrigger} />
         </div>
       </div>
     </div>

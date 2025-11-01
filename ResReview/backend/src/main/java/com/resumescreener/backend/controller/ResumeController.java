@@ -23,31 +23,38 @@ public class ResumeController {
     private JwtUtil jwtUtil;
 
     /**
-     * Analyze endpoint: expects 'file' (multipart) and 'jobDescription' (string).
-     * Also expects an Authorization header "Bearer <token>" to identify user (optional based on your auth).
+     * Analyze endpoint:
+     * - expects 'file' (multipart) and 'jobDescription' (string)
+     * - optionally expects Authorization header "Bearer <token>" to identify user
      */
     @PostMapping("/analyze")
     public ResponseEntity<?> analyzeResume(
             @RequestHeader(value = "Authorization", required = false) String authorization,
             @RequestParam("file") MultipartFile file,
+            @RequestParam("jobRole") String jobRole,
             @RequestParam("jobDescription") String jobDescription) {
+
         try {
             String userId = null;
             if (authorization != null && authorization.startsWith("Bearer ")) {
                 String token = authorization.substring(7);
-                userId = jwtUtil.extractUserId(token); // implement extractUserId or username in JwtUtil
+                userId = jwtUtil.extractUserId(token); // ✅ ensure JwtUtil has extractUserId()
             }
 
-            Map<String, Object> result = resumeService.analyzeResume(file, jobDescription, userId);
+            Map<String, Object> result = resumeService.analyzeResume(file, jobDescription, jobRole, userId);
             return ResponseEntity.ok(result);
+
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+
         } catch (Exception e) {
             e.printStackTrace();
-            return ResponseEntity.status(500).body(Map.of("error", "Internal server error", "details", e.getMessage()));
+            return ResponseEntity.status(500)
+                    .body(Map.of("error", "Internal server error", "details", e.getMessage()));
         }
     }
 
+    // ✅ Returns all resumes analyzed by a specific user
     @GetMapping("/user/{userId}")
     public ResponseEntity<List<Resume>> getUserResumes(@PathVariable String userId) {
         return ResponseEntity.ok(resumeService.getResumesByUser(userId));
