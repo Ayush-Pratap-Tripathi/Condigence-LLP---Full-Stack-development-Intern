@@ -1,8 +1,8 @@
 // src/components/ResumesTable.jsx
 import React, { useEffect, useState } from "react";
-import { getUserResumes } from "../services/api";
+import api, { getUserResumes } from "../services/api";
 
-// --- Helper extraction functions (same heuristics as before) ---
+// --- Helper extraction functions (same as before) ---
 function extractEmail(text = "") {
   const emailRegex = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i;
   const m = text.match(emailRegex);
@@ -70,7 +70,7 @@ function extractJobRole(jobDescription = "", text = "") {
 // --- MAIN COMPONENT ---
 export default function ResumesTable({ refreshTrigger }) {
   const [resumes, setResumes] = useState([]);
-  const [allResumes, setAllResumes] = useState([]); // store all resumes (for filtering)
+  const [allResumes, setAllResumes] = useState([]);
   const [filterRole, setFilterRole] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -134,7 +134,6 @@ export default function ResumesTable({ refreshTrigger }) {
 
   useEffect(() => {
     loadResumes();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [refreshTrigger]);
 
   const handleFilter = () => {
@@ -150,15 +149,26 @@ export default function ResumesTable({ refreshTrigger }) {
     setResumes(allResumes);
   };
 
-  // 🧩 Handle View Button Click
+  // 🧩 Updated View Button — now uses BASE_URL from api.js
   const handleView = (resumeId) => {
     if (!resumeId) return;
     const token = localStorage.getItem("token");
-    const url = `http://localhost:8080/api/resumes/${resumeId}/file`;
-    // open in new tab
-    const headers = token ? { Authorization: `Bearer ${token}` } : {};
-    // We can’t attach headers via <a> directly, so we open the endpoint URL (JWT optional if not enforced)
-    window.open(url, "_blank");
+    const fileUrl = `${api.defaults.baseURL}/resumes/${resumeId}/file`;
+
+    // If backend requires JWT in header (not in URL), use fetch instead:
+    if (token) {
+      fetch(fileUrl, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+        .then((res) => res.blob())
+        .then((blob) => {
+          const blobUrl = window.URL.createObjectURL(blob);
+          window.open(blobUrl, "_blank");
+        })
+        .catch((err) => console.error("Error viewing resume:", err));
+    } else {
+      window.open(fileUrl, "_blank");
+    }
   };
 
   if (loading)
@@ -212,7 +222,7 @@ export default function ResumesTable({ refreshTrigger }) {
               <th className="text-right p-3">ATS Score</th>
               <th className="text-right p-3">Match %</th>
               <th className="text-left p-3">Rating</th>
-              <th className="text-center p-3">View</th> {/* 👈 New Column */}
+              <th className="text-center p-3">View</th>
             </tr>
           </thead>
           <tbody>
