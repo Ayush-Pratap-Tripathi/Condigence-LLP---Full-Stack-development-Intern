@@ -1,7 +1,8 @@
 // src/services/api.js
 import axios from "axios";
 
-const BASE_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:8080/api";
+const BASE_URL =
+  import.meta.env.VITE_BACKEND_URL || "http://localhost:8080/api";
 
 const api = axios.create({
   baseURL: BASE_URL,
@@ -33,6 +34,22 @@ api.interceptors.response.use(
     return Promise.reject(error);
   }
 );
+
+export async function deleteResumeById(id) {
+  const token = localStorage.getItem("token");
+  const res = await api.delete(`/resumes/${id}`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  return res.data;
+}
+
+export async function deleteAllUserResumes(userId) {
+  const token = localStorage.getItem("token");
+  const res = await api.delete(`/resumes/user/${userId}`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  return res.data;
+}
 
 export async function analyzeResume(formData) {
   const token = localStorage.getItem("token");

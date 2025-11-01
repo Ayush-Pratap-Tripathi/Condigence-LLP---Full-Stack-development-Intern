@@ -1,6 +1,6 @@
 // src/components/ResumesTable.jsx
 import React, { useEffect, useState } from "react";
-import api, { getUserResumes } from "../services/api";
+import api, { getUserResumes, deleteResumeById, deleteAllUserResumes } from "../services/api";
 
 // --- Helper extraction functions (same as before) ---
 function extractEmail(text = "") {
@@ -149,13 +149,10 @@ export default function ResumesTable({ refreshTrigger }) {
     setResumes(allResumes);
   };
 
-  // 🧩 Updated View Button — now uses BASE_URL from api.js
   const handleView = (resumeId) => {
     if (!resumeId) return;
     const token = localStorage.getItem("token");
     const fileUrl = `${api.defaults.baseURL}/resumes/${resumeId}/file`;
-
-    // If backend requires JWT in header (not in URL), use fetch instead:
     if (token) {
       fetch(fileUrl, {
         headers: { Authorization: `Bearer ${token}` },
@@ -171,41 +168,78 @@ export default function ResumesTable({ refreshTrigger }) {
     }
   };
 
+  // 🗑️ Delete one resume
+  const handleDelete = async (resumeId) => {
+    if (!window.confirm("Are you sure you want to delete this resume?")) return;
+    try {
+      await deleteResumeById(resumeId);
+      alert("Resume deleted successfully!");
+      loadResumes();
+    } catch (err) {
+      console.error("Delete failed:", err);
+      alert("Failed to delete resume.");
+    }
+  };
+
+  // 🧹 Delete all resumes
+  const handleDeleteAll = async () => {
+    if (!window.confirm("Delete ALL resumes? This cannot be undone.")) return;
+    try {
+      const userRaw = localStorage.getItem("user");
+      const user = JSON.parse(userRaw);
+      const userId = user?.id;
+      await deleteAllUserResumes(userId);
+      alert("All resumes deleted successfully!");
+      loadResumes();
+    } catch (err) {
+      console.error("Delete all failed:", err);
+      alert("Failed to delete all resumes.");
+    }
+  };
+
   if (loading)
     return <div className="py-6 text-center">Loading resumes...</div>;
   if (error)
     return <div className="py-6 text-red-600 text-center">{error}</div>;
-
-  if (!allResumes.length) {
+  if (!allResumes.length)
     return (
       <div className="py-6 text-center text-gray-600">
         No resumes uploaded yet.
       </div>
     );
-  }
 
   return (
     <div className="bg-white/70 backdrop-blur-2xl rounded-3xl shadow-2xl p-6 transition-all duration-500 hover:shadow-blue-200/50 border border-white/40">
-      {/* 🔍 Filter Controls */}
-      <div className="flex flex-wrap items-center gap-3 mb-6">
-        <input
-          type="text"
-          value={filterRole}
-          onChange={(e) => setFilterRole(e.target.value)}
-          placeholder="Filter by Job Role"
-          className="p-3 rounded-xl bg-white/80 border border-blue-100 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all w-full md:w-64"
-        />
+      {/* 🔍 Filter Controls + Delete All */}
+      <div className="flex flex-wrap items-center gap-3 mb-6 justify-between">
+        <div className="flex items-center gap-3">
+          <input
+            type="text"
+            value={filterRole}
+            onChange={(e) => setFilterRole(e.target.value)}
+            placeholder="Filter by Job Role"
+            className="p-3 rounded-xl bg-white/80 border border-blue-100 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all w-full md:w-64"
+          />
+          <button
+            onClick={handleFilter}
+            className="bg-blue-600 text-white px-4 py-2 rounded-xl hover:bg-blue-700 transition-all shadow-md"
+          >
+            Filter
+          </button>
+          <button
+            onClick={handleShowAll}
+            className="bg-gray-200 text-gray-800 px-4 py-2 rounded-xl hover:bg-gray-300 transition-all"
+          >
+            Show All
+          </button>
+        </div>
+
+        {/* 🧹 Delete All */}
         <button
-          onClick={handleFilter}
-          className="bg-blue-600 text-white px-4 py-2 rounded-xl hover:bg-blue-700 transition-all shadow-md"
+          onClick={handleDeleteAll}
+          className="bg-red-100 text-red-600 px-4 py-2 rounded-xl hover:bg-red-200 transition-all font-medium"
         >
-          Filter
-        </button>
-        <button
-          onClick={handleShowAll}
-          className="bg-gray-200 text-gray-800 px-4 py-2 rounded-xl hover:bg-gray-300 transition-all"
-        >
-          Show All
+          Delete All
         </button>
       </div>
 
@@ -223,6 +257,7 @@ export default function ResumesTable({ refreshTrigger }) {
               <th className="text-right p-3">Match %</th>
               <th className="text-left p-3">Rating</th>
               <th className="text-center p-3">View</th>
+              <th className="text-center p-3">Delete</th>
             </tr>
           </thead>
           <tbody>
@@ -256,6 +291,14 @@ export default function ResumesTable({ refreshTrigger }) {
                     className="text-blue-600 hover:underline font-medium"
                   >
                     View
+                  </button>
+                </td>
+                <td className="p-3 align-top text-center">
+                  <button
+                    onClick={() => handleDelete(r.id)}
+                    className="text-red-600 hover:underline font-medium"
+                  >
+                    Delete
                   </button>
                 </td>
               </tr>

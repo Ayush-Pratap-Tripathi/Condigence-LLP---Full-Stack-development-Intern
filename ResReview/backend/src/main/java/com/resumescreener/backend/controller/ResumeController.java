@@ -54,7 +54,7 @@ public class ResumeController {
         return ResponseEntity.ok(resumeService.getResumesByUser(userId));
     }
 
-    // ✅ New endpoint to fetch and display the actual PDF
+    // ✅ Endpoint to fetch actual PDF
     @GetMapping("/{id}/file")
     public ResponseEntity<byte[]> getResumeFile(@PathVariable String id) {
         Optional<Resume> resumeOpt = resumeService.getResumeById(id);
@@ -73,5 +73,23 @@ public class ResumeController {
                 .header("Content-Type", "application/pdf")
                 .header("Content-Disposition", "inline; filename=\"" + resume.getFileName() + "\"")
                 .body(fileData);
+    }
+
+    // ✅ Delete single resume by ID
+    @DeleteMapping("/{id}")
+    public ResponseEntity<?> deleteResumeById(@PathVariable String id) {
+        boolean deleted = resumeService.deleteResumeById(id);
+        if (deleted) {
+            return ResponseEntity.ok(Map.of("message", "Resume deleted successfully"));
+        } else {
+            return ResponseEntity.status(404).body(Map.of("error", "Resume not found"));
+        }
+    }
+
+    // ✅ Delete all resumes of a user
+    @DeleteMapping("/user/{userId}")
+    public ResponseEntity<?> deleteAllResumesByUser(@PathVariable String userId) {
+        resumeService.deleteAllResumesByUser(userId);
+        return ResponseEntity.ok(Map.of("message", "All resumes deleted successfully"));
     }
 }

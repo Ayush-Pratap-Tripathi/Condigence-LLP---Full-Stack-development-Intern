@@ -122,4 +122,20 @@ public class ResumeService {
             return "Average";
         return "Poor";
     }
+
+    // ✅ Delete one resume
+    public boolean deleteResumeById(String id) {
+        if (resumeRepository.existsById(id)) {
+            resumeRepository.deleteById(id);
+            return true;
+        }
+        return false;
+    }
+
+    // ✅ Delete all resumes for a user
+    public void deleteAllResumesByUser(String userId) {
+        List<Resume> resumes = resumeRepository.findByUserId(userId);
+        resumeRepository.deleteAll(resumes);
+    }
+
 }
