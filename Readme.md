@@ -95,7 +95,3 @@ Each folder contains the respective project’s source code, backend, frontend, 
 
 ---
 
-## 📂 How to Navigate
-1. Clone this repo:  
-   ```bash
-   git clone https://github.com/<your-username>/Condigence-LLP-fullstack-intern.git
