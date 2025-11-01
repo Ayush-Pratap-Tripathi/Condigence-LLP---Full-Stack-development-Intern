@@ -10,6 +10,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 @CrossOrigin(origins = "http://localhost:5173")
 @RestController
@@ -22,11 +23,6 @@ public class ResumeController {
     @Autowired
     private JwtUtil jwtUtil;
 
-    /**
-     * Analyze endpoint:
-     * - expects 'file' (multipart) and 'jobDescription' (string)
-     * - optionally expects Authorization header "Bearer <token>" to identify user
-     */
     @PostMapping("/analyze")
     public ResponseEntity<?> analyzeResume(
             @RequestHeader(value = "Authorization", required = false) String authorization,
@@ -38,7 +34,7 @@ public class ResumeController {
             String userId = null;
             if (authorization != null && authorization.startsWith("Bearer ")) {
                 String token = authorization.substring(7);
-                userId = jwtUtil.extractUserId(token); // ✅ ensure JwtUtil has extractUserId()
+                userId = jwtUtil.extractUserId(token);
             }
 
             Map<String, Object> result = resumeService.analyzeResume(file, jobDescription, jobRole, userId);
@@ -54,9 +50,29 @@ public class ResumeController {
         }
     }
 
-    // ✅ Returns all resumes analyzed by a specific user
     @GetMapping("/user/{userId}")
     public ResponseEntity<List<Resume>> getUserResumes(@PathVariable String userId) {
         return ResponseEntity.ok(resumeService.getResumesByUser(userId));
+    }
+
+    // ✅ New endpoint to fetch and display the actual PDF
+    @GetMapping("/{id}/file")
+    public ResponseEntity<byte[]> getResumeFile(@PathVariable String id) {
+        Optional<Resume> resumeOpt = resumeService.getResumeById(id);
+        if (resumeOpt.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+
+        Resume resume = resumeOpt.get();
+        byte[] fileData = resume.getFileData();
+
+        if (fileData == null) {
+            return ResponseEntity.badRequest().build();
+        }
+
+        return ResponseEntity.ok()
+                .header("Content-Type", "application/pdf")
+                .header("Content-Disposition", "inline; filename=\"" + resume.getFileName() + "\"")
+                .body(fileData);
     }
 }

@@ -10,7 +10,8 @@ function extractEmail(text = "") {
 }
 
 function extractPhone(text = "") {
-  const phoneRegex = /(\+?\d{1,3}[-.\s]?)?(\(?\d{2,4}\)?[-.\s]?)?[\d\-.\s]{6,15}\d/g;
+  const phoneRegex =
+    /(\+?\d{1,3}[-.\s]?)?(\(?\d{2,4}\)?[-.\s]?)?[\d\-.\s]{6,15}\d/g;
   const matches = text.match(phoneRegex);
   if (!matches) return "";
   for (let m of matches) {
@@ -22,7 +23,10 @@ function extractPhone(text = "") {
 
 function extractName(text = "") {
   if (!text) return "";
-  const lines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+  const lines = text
+    .split(/\r?\n/)
+    .map((l) => l.trim())
+    .filter(Boolean);
   for (let line of lines.slice(0, 12)) {
     const m = line.match(/^(?:Name|Full Name|Candidate Name)\s*[:\-]\s*(.+)$/i);
     if (m && m[1]) return m[1].trim();
@@ -34,7 +38,11 @@ function extractName(text = "") {
     }
   }
   for (let line of lines.slice(0, 6)) {
-    if (/^[A-Z\s]{3,40}$/.test(line) && !line.includes("RESUME") && !line.includes("CURRICULUM")) {
+    if (
+      /^[A-Z\s]{3,40}$/.test(line) &&
+      !line.includes("RESUME") &&
+      !line.includes("CURRICULUM")
+    ) {
       return line.trim();
     }
   }
@@ -43,7 +51,10 @@ function extractName(text = "") {
 
 function extractJobRole(jobDescription = "", text = "") {
   if (jobDescription && jobDescription.trim().length > 0) {
-    const lines = jobDescription.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+    const lines = jobDescription
+      .split(/\r?\n/)
+      .map((l) => l.trim())
+      .filter(Boolean);
     for (let line of lines.slice(0, 6)) {
       const m = line.match(/^(?:Job Title|Role|Position)\s*[:\-]\s*(.+)$/i);
       if (m && m[1]) return m[1].trim();
@@ -80,8 +91,6 @@ export default function ResumesTable({ refreshTrigger }) {
       const data = await getUserResumes(userId);
       const arr = Array.isArray(data) ? data : [];
 
-      // Map with robust handling: prefer explicit fields from backend,
-      // fallback to extraction heuristics (extractedText/jobDescription)
       const mapped = arr.map((r) => {
         const text = r.extractedText || "";
         const jobDesc = r.jobDescription || "";
@@ -110,9 +119,9 @@ export default function ResumesTable({ refreshTrigger }) {
         };
       });
 
-      // Sort by matchPercentage desc (highest first)
-      mapped.sort((a, b) => (b.matchPercentage || 0) - (a.matchPercentage || 0));
-
+      mapped.sort(
+        (a, b) => (b.matchPercentage || 0) - (a.matchPercentage || 0)
+      );
       setResumes(mapped);
       setAllResumes(mapped);
     } catch (err) {
@@ -129,10 +138,7 @@ export default function ResumesTable({ refreshTrigger }) {
   }, [refreshTrigger]);
 
   const handleFilter = () => {
-    if (!filterRole.trim()) {
-      // if nothing entered, do nothing (or you could show all)
-      return;
-    }
+    if (!filterRole.trim()) return;
     const filtered = allResumes.filter((r) =>
       (r.jobRole || "").toLowerCase().includes(filterRole.toLowerCase())
     );
@@ -144,12 +150,28 @@ export default function ResumesTable({ refreshTrigger }) {
     setResumes(allResumes);
   };
 
-  if (loading) return <div className="py-6 text-center">Loading resumes...</div>;
-  if (error) return <div className="py-6 text-red-600 text-center">{error}</div>;
+  // 🧩 Handle View Button Click
+  const handleView = (resumeId) => {
+    if (!resumeId) return;
+    const token = localStorage.getItem("token");
+    const url = `http://localhost:8080/api/resumes/${resumeId}/file`;
+    // open in new tab
+    const headers = token ? { Authorization: `Bearer ${token}` } : {};
+    // We can’t attach headers via <a> directly, so we open the endpoint URL (JWT optional if not enforced)
+    window.open(url, "_blank");
+  };
 
-  // When user has no resumes at all
+  if (loading)
+    return <div className="py-6 text-center">Loading resumes...</div>;
+  if (error)
+    return <div className="py-6 text-red-600 text-center">{error}</div>;
+
   if (!allResumes.length) {
-    return <div className="py-6 text-center text-gray-600">No resumes uploaded yet.</div>;
+    return (
+      <div className="py-6 text-center text-gray-600">
+        No resumes uploaded yet.
+      </div>
+    );
   }
 
   return (
@@ -190,14 +212,20 @@ export default function ResumesTable({ refreshTrigger }) {
               <th className="text-right p-3">ATS Score</th>
               <th className="text-right p-3">Match %</th>
               <th className="text-left p-3">Rating</th>
+              <th className="text-center p-3">View</th> {/* 👈 New Column */}
             </tr>
           </thead>
           <tbody>
             {resumes.map((r, idx) => (
-              <tr key={r.id || idx} className={idx % 2 === 0 ? "bg-white" : "bg-gray-50"}>
+              <tr
+                key={r.id || idx}
+                className={idx % 2 === 0 ? "bg-white" : "bg-gray-50"}
+              >
                 <td className="p-3 align-top">{idx + 1}</td>
                 <td className="p-3 align-top">
-                  <div className="font-medium">{r.candidateName || "Unknown"}</div>
+                  <div className="font-medium">
+                    {r.candidateName || "Unknown"}
+                  </div>
                   <div className="text-sm text-gray-500">{r.fileName}</div>
                 </td>
                 <td className="p-3 align-top">{r.candidatePhone || "-"}</td>
@@ -207,9 +235,19 @@ export default function ResumesTable({ refreshTrigger }) {
                   {r.atsScore != null ? Number(r.atsScore).toFixed(1) : "-"}
                 </td>
                 <td className="p-3 align-top text-right">
-                  {r.matchPercentage != null ? Number(r.matchPercentage).toFixed(1) : "-"}
+                  {r.matchPercentage != null
+                    ? Number(r.matchPercentage).toFixed(1)
+                    : "-"}
                 </td>
                 <td className="p-3 align-top">{r.rating || "-"}</td>
+                <td className="p-3 align-top text-center">
+                  <button
+                    onClick={() => handleView(r.id)}
+                    className="text-blue-600 hover:underline font-medium"
+                  >
+                    View
+                  </button>
+                </td>
               </tr>
             ))}
           </tbody>

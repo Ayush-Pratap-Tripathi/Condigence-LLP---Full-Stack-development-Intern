@@ -2,7 +2,6 @@ package com.resumescreener.backend.model;
 
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
-
 import java.util.Date;
 
 @Document(collection = "resumes")
@@ -15,25 +14,19 @@ public class Resume {
     private double atsScore;
     private double matchPercentage;
     private String rating;
-    private String extractedText; // optional store
+    private String extractedText;
     private String jobDescription;
     private String jobRole;
+
+    // ✅ NEW FIELD: Store PDF as binary data
+    private byte[] fileData;
 
     public Resume() {
     }
 
-    // getters and setters
-
+    // Getters & Setters
     public String getId() {
         return id;
-    }
-
-    public String getJobRole() {
-        return jobRole;
-    }
-
-    public void setJobRole(String jobRole) {
-        this.jobRole = jobRole;
     }
 
     public void setId(String id) {
@@ -102,5 +95,22 @@ public class Resume {
 
     public void setJobDescription(String jobDescription) {
         this.jobDescription = jobDescription;
+    }
+
+    public String getJobRole() {
+        return jobRole;
+    }
+
+    public void setJobRole(String jobRole) {
+        this.jobRole = jobRole;
+    }
+
+    // ✅ Getter & Setter for new binary field
+    public byte[] getFileData() {
+        return fileData;
+    }
+
+    public void setFileData(byte[] fileData) {
+        this.fileData = fileData;
     }
 }
