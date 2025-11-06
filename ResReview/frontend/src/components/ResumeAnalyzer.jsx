@@ -5,34 +5,44 @@ import depictable from "../assets/Depictable.png";
 
 export default function ResumeAnalyzer({ onAnalysisComplete }) {
   const [jobDescription, setJobDescription] = useState("");
-  const [file, setFile] = useState(null);
+  const [files, setFiles] = useState([]);
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
   const [jobRole, setJobRole] = useState("");
 
-  const handleFileChange = (e) => setFile(e.target.files[0]);
+  // ✅ Allow selecting multiple files
+  const handleFileChange = (e) => {
+    setFiles(Array.from(e.target.files));
+  };
 
+  // ✅ Handle multiple file uploads
   const handleAnalyze = async (e) => {
     e.preventDefault();
-    if (!file || !jobDescription.trim()) {
+    if (!files || files.length === 0 || !jobDescription.trim()) {
       setMessage("❌ Please fill all fields.");
       return;
     }
 
     const formData = new FormData();
-    formData.append("file", file);
+    files.forEach((f) => formData.append("files", f));
     formData.append("jobDescription", jobDescription);
     formData.append("jobRole", jobRole);
 
     setLoading(true);
-    setMessage("Analyzing your resume...");
+    setMessage("Analyzing your resume(s)...");
 
     try {
-      await analyzeResume(formData);
+      const res = await analyzeResume(formData);
+      // backend may return single object or array
+      const created = Array.isArray(res) ? res : [res];
+      if (typeof onAnalysisComplete === "function") onAnalysisComplete(created);
       setMessage("✅ Analysis complete");
-      onAnalysisComplete();
-    } catch {
-      setMessage("❌ Analysis failed");
+      setFiles([]);
+      setJobRole("");
+      setJobDescription("");
+    } catch (err) {
+      console.error(err);
+      setMessage(err?.message || "Upload failed");
     } finally {
       setLoading(false);
     }
@@ -64,13 +74,21 @@ export default function ResumeAnalyzer({ onAnalysisComplete }) {
             className="w-full p-2.5 rounded-lg bg-white/70 border border-blue-100 focus:ring-2 focus:ring-blue-400 focus:outline-none transition-all text-sm"
           />
 
+          {/* ✅ Multi-file input */}
           <div className="relative w-full">
             <label className="flex items-center justify-between p-2.5 rounded-lg bg-white/70 border border-blue-100 cursor-pointer hover:bg-blue-50 transition-all text-sm">
-              <span>{file ? file.name : "Choose resume file (.pdf)"}</span>
-              <span className="bg-blue-600 text-white px-3 py-1 rounded-lg text-xs">Browse</span>
+              <span>
+                {files.length > 0
+                  ? `${files.length} file${files.length > 1 ? "s" : ""} selected`
+                  : "Choose resume file(s) (.pdf, .doc, .docx, .txt)"}
+              </span>
+              <span className="bg-blue-600 text-white px-3 py-1 rounded-lg text-xs">
+                Browse
+              </span>
               <input
                 type="file"
                 accept=".pdf,.doc,.docx,.txt"
+                multiple
                 onChange={handleFileChange}
                 className="hidden"
               />
@@ -82,7 +100,7 @@ export default function ResumeAnalyzer({ onAnalysisComplete }) {
             disabled={loading}
             className="w-full bg-blue-600 text-white py-2.5 rounded-lg font-medium shadow-md hover:bg-blue-700 hover:shadow-lg transition-all duration-300 text-sm"
           >
-            {loading ? "Analyzing..." : "Analyze Resume"}
+            {loading ? "Analyzing..." : "Analyze Resume(s)"}
           </button>
         </form>
 
@@ -101,7 +119,7 @@ export default function ResumeAnalyzer({ onAnalysisComplete }) {
         )}
       </div>
 
-      {/* Right - Image */}
+      {/* Right - Illustration */}
       <div className="hidden lg:flex w-1/2 justify-center items-center">
         <img
           src={depictable}
