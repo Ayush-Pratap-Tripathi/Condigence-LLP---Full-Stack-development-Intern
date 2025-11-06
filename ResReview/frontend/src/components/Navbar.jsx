@@ -26,10 +26,25 @@ export default function Navbar() {
     navigate("/login");
   }
 
+  // ✅ Improved scroll/navigation logic
   const scrollToSection = (id) => {
-    const section = document.getElementById(id);
-    if (section) {
-      section.scrollIntoView({ behavior: "smooth", block: "start" });
+    if (location.pathname === "/dashboard") {
+      // If already on dashboard, scroll immediately
+      const section = document.getElementById(id);
+      if (section) {
+        section.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+    } else {
+      // If on another page, navigate to dashboard first, then scroll
+      navigate("/dashboard", { replace: false });
+
+      // Wait briefly for dashboard to mount, then scroll
+      setTimeout(() => {
+        const section = document.getElementById(id);
+        if (section) {
+          section.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
+      }, 500); // delay ensures Dashboard is rendered
     }
   };
 
@@ -63,16 +78,30 @@ export default function Navbar() {
         <nav className="hidden sm:flex items-center space-x-10">
           <button
             onClick={() => scrollToSection("resume-analyzer")}
-            className="text-blue-800 font-medium hover:text-blue-600 transition-all duration-300 hover:scale-105"
+            className={`text-blue-800 font-medium transition-all duration-300 hover:text-blue-600 hover:scale-105 ${
+              location.pathname === "/dashboard" ? "text-blue-900" : ""
+            }`}
           >
             Analyze Resume
           </button>
+
           <button
             onClick={() => scrollToSection("resumes-table")}
             className="text-blue-800 font-medium hover:text-blue-600 transition-all duration-300 hover:scale-105"
           >
             See Rankings
           </button>
+
+          <Link
+            to="/ats-suggestions"
+            className={`text-blue-800 font-medium hover:text-blue-600 transition-all duration-300 hover:scale-105 ${
+              location.pathname === "/ats-suggestions"
+                ? "text-blue-900 font-semibold underline decoration-blue-400"
+                : ""
+            }`}
+          >
+            ATS Suggestions
+          </Link>
         </nav>
 
         {/* 🔹 Right: Logout Button */}
