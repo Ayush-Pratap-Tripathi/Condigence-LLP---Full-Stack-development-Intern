@@ -3,8 +3,8 @@ from django.db import models
 
 
 class CustomUser(AbstractUser):
-    # username, password, email already provided by AbstractUser
-    # Add the mongo collection name field
+    # make email unique to enforce uniqueness at DB level
+    email = models.EmailField(unique=True)
     mongo_collection_name = models.CharField(max_length=255, null=True, blank=True)
 
     def __str__(self):
