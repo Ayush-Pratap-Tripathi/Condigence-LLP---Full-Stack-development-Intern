@@ -1,7 +1,7 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework import status
-from .serializers import SignupSerializer
+from rest_framework import status, permissions
+from .serializers import SignupSerializer, UserProfileSerializer
 from django.contrib.auth import get_user_model
 from django.contrib.auth import authenticate
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -94,3 +94,38 @@ class SignupAPIView(APIView):
             )
         # serializer errors are returned with field-specific messages
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class ProfileDetail(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        serializer = UserProfileSerializer(request.user, context={"request": request})
+        return Response(serializer.data)
+
+    def patch(self, request):
+        user = request.user
+
+        # Support explicit avatar removal flag (frontend: remove_avatar=true)
+        remove_avatar = request.data.get("remove_avatar")
+        if remove_avatar in ["1", "true", "True", True]:
+            if user.avatar:
+                user.avatar.delete(save=True)
+
+        serializer = UserProfileSerializer(
+            user, data=request.data, partial=True, context={"request": request}
+        )
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def delete(self, request):
+        user = request.user
+        # if want to remove media file before deletion
+        if user.avatar:
+            user.avatar.delete(save=False)
+        user.delete()
+        return Response(
+            {"detail": "Account deleted."}, status=status.HTTP_204_NO_CONTENT
+        )

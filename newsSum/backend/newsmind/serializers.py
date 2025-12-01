@@ -40,3 +40,47 @@ class SignupSerializer(serializers.Serializer):
         user.set_password(password)
         user.save()
         return user
+
+
+class UserProfileSerializer(serializers.ModelSerializer):
+    avatar = serializers.ImageField(allow_null=True, required=False)
+    # computed read-only full name (frontend can use this)
+    name = serializers.SerializerMethodField(read_only=True)
+
+    class Meta:
+        model = User
+        fields = (
+            "id",
+            "username",
+            "email",
+            "first_name",
+            "last_name",
+            "name",
+            "avatar",
+            "date_joined",
+        )
+        read_only_fields = ("id", "date_joined")
+
+    def get_name(self, obj):
+        # combine first and last name (trim extra spaces)
+        parts = [
+            p
+            for p in (obj.first_name or "").strip().split()
+            + (obj.last_name or "").strip().split()
+            if p
+        ]
+        return " ".join(parts).strip()
+
+    def validate_username(self, value):
+        request_user = self.context["request"].user
+        if User.objects.filter(username=value).exclude(pk=request_user.pk).exists():
+            raise serializers.ValidationError("This username is already taken.")
+        return value
+
+    def validate_email(self, value):
+        request_user = self.context["request"].user
+        if User.objects.filter(email=value).exclude(pk=request_user.pk).exists():
+            raise serializers.ValidationError(
+                "This email is already used by another account."
+            )
+        return value
