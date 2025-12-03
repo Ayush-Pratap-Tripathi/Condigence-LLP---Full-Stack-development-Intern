@@ -46,3 +46,7 @@ export const clearReadHistory = async () => {
   return api.delete(`/history/read/clear/`);
 };
 
+export const getNews = (params = {}) => {
+  // params: { q, category, country, lang, max, page, sortby }
+  return api.get("/news/", { params });
+};

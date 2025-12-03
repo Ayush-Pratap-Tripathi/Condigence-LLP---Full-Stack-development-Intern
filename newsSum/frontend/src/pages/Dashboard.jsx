@@ -30,17 +30,27 @@ const Dashboard = () => {
     }
   };
 
-  const fetchArticles = async () => {
+  const fetchArticles = async (opts = {}) => {
     setLoading(true);
     try {
-      // In future -> const res = await api.get("/news/");
-      // setArticles(res.data.articles);
+      // sample params: { category: 'technology', max: 12 }
+      const params = {
+        max: opts.max || 12,
+        page: opts.page || 1,
+        q: opts.q || undefined,
+        category: opts.category || undefined,
+        country: opts.country || undefined,
+        lang: opts.lang || "en",
+        sortby: opts.sortby || undefined,
+      };
 
-      await new Promise((resolve) => setTimeout(resolve, 800)); // simulated delay
-      setArticles([]); // empty for now
+      const res = await api.get("/news/", { params });
+      // if you added a helper: const res = await getNews(params);
+      const articles = res.data.articles || [];
+      setArticles(articles);
     } catch (err) {
-      console.error(err);
-      toast.error("Failed to load articles");
+      console.error("Failed to load news", err);
+      toast.error("Failed to load news");
     } finally {
       setLoading(false);
     }
@@ -132,8 +142,26 @@ const Dashboard = () => {
                   whileHover={{ y: -4 }}
                   className="bg-white rounded-lg shadow p-4 flex flex-col"
                 >
-                  <div className="h-40 bg-gray-100 rounded mb-3 flex items-center justify-center text-gray-400">
-                    No image
+                  <div className="h-40 bg-gray-100 rounded mb-3 overflow-hidden">
+                    {a.image ? (
+                      <img
+                        src={a.image}
+                        alt={a.title}
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          // avoid infinite loop
+                          e.currentTarget.onerror = null;
+                          // fallback to a local placeholder (put this in public/assets/)
+                          e.currentTarget.src = "/assets/image_placeholder.png";
+                          // alternatively, if you implemented an image-proxy endpoint, use:
+                          // e.currentTarget.src = `/api/image-proxy/?url=${encodeURIComponent(a.image)}`;
+                        }}
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-gray-400">
+                        No image
+                      </div>
+                    )}
                   </div>
                   <h3 className="font-semibold text-gray-900">{a.title}</h3>
                   <p className="text-sm text-gray-600 flex-1">
@@ -142,7 +170,7 @@ const Dashboard = () => {
 
                   <div className="mt-4 flex items-center justify-between">
                     <div className="flex gap-2">
-                      <button className="px-3 py-1 rounded bg-primary text-white text-sm">
+                      <button className="px-3 py-1 rounded bg-primary text-blue-700 text-sm">
                         Summarize
                       </button>
                       <button className="px-3 py-1 rounded border text-sm">
