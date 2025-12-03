@@ -160,7 +160,10 @@ const Sidebar = ({ user = {}, summaries = [], onOpenSummary, onLogout }) => {
                   />
                 </button>
               </div>
-              <button className="w-full text-left px-3 py-2 rounded hover:bg-gray-50">
+              <button
+                onClick={() => navigate("/history")}
+                className="w-full text-left px-3 py-2 rounded hover:bg-gray-50"
+              >
                 My History
               </button>
               <button

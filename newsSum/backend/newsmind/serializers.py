@@ -2,6 +2,7 @@ from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from django.core.validators import validate_email
 from django.core.exceptions import ValidationError as DjangoValidationError
+from .models import SearchHistory, ReadHistory
 
 User = get_user_model()
 
@@ -84,3 +85,15 @@ class UserProfileSerializer(serializers.ModelSerializer):
                 "This email is already used by another account."
             )
         return value
+
+
+class SearchHistorySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SearchHistory
+        fields = ("id", "query", "filters", "created_at")
+
+
+class ReadHistorySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ReadHistory
+        fields = ("id", "article_id", "article_meta", "created_at")

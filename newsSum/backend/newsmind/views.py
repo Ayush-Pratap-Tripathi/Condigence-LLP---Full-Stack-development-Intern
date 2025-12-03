@@ -1,10 +1,13 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework import status, permissions
+from rest_framework import status, permissions, generics
 from .serializers import SignupSerializer, UserProfileSerializer
 from django.contrib.auth import get_user_model
 from django.contrib.auth import authenticate
 from rest_framework_simplejwt.tokens import RefreshToken
+from django.shortcuts import get_object_or_404
+from .models import SearchHistory, ReadHistory
+from .serializers import SearchHistorySerializer, ReadHistorySerializer
 
 User = get_user_model()
 
@@ -128,4 +131,66 @@ class ProfileDetail(APIView):
         user.delete()
         return Response(
             {"detail": "Account deleted."}, status=status.HTTP_204_NO_CONTENT
+        )
+
+
+# List / delete / clear SearchHistory for the current user
+class SearchHistoryListCreateView(generics.ListAPIView):
+    permission_classes = [permissions.IsAuthenticated]
+    serializer_class = SearchHistorySerializer
+
+    def get_queryset(self):
+        # return latest first
+        return SearchHistory.objects.filter(user=self.request.user).order_by(
+            "-created_at"
+        )
+
+
+class SearchHistoryDeleteView(generics.DestroyAPIView):
+    permission_classes = [permissions.IsAuthenticated]
+    serializer_class = SearchHistorySerializer
+    lookup_url_kwarg = "pk"
+
+    def get_queryset(self):
+        # Ensure the user can only delete their own history rows
+        return SearchHistory.objects.filter(user=self.request.user)
+
+
+class SearchHistoryClearView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def delete(self, request):
+        SearchHistory.objects.filter(user=request.user).delete()
+        return Response(
+            {"detail": "Search history cleared."}, status=status.HTTP_204_NO_CONTENT
+        )
+
+
+# Read/Article history endpoints
+class ReadHistoryListView(generics.ListAPIView):
+    permission_classes = [permissions.IsAuthenticated]
+    serializer_class = ReadHistorySerializer
+
+    def get_queryset(self):
+        return ReadHistory.objects.filter(user=self.request.user).order_by(
+            "-created_at"
+        )
+
+
+class ReadHistoryDeleteView(generics.DestroyAPIView):
+    permission_classes = [permissions.IsAuthenticated]
+    serializer_class = ReadHistorySerializer
+    lookup_url_kwarg = "pk"
+
+    def get_queryset(self):
+        return ReadHistory.objects.filter(user=self.request.user)
+
+
+class ReadHistoryClearView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def delete(self, request):
+        ReadHistory.objects.filter(user=request.user).delete()
+        return Response(
+            {"detail": "Read history cleared."}, status=status.HTTP_204_NO_CONTENT
         )
