@@ -1,15 +1,17 @@
 // frontend/src/components/Sidebar.jsx
-import React, { useState } from "react";
+import React, { useState, useContext } from "react";
 import { useNavigate } from "react-router-dom";
 import { AnimatePresence } from "framer-motion";
 import { FiSettings, FiMenu, FiMoreVertical } from "react-icons/fi";
 import DummyProfile from "../constants/dummy_profile.svg";
 import { motion } from "framer-motion";
+import { ThemeContext } from "../contexts/ThemeContext";
 
 const Sidebar = ({ user = {}, summaries = [], onOpenSummary, onLogout }) => {
   const navigate = useNavigate();
   const [collapsed, setCollapsed] = useState(false);
   const [openSettings, setOpenSettings] = useState(false);
+  const { theme, toggleTheme } = useContext(ThemeContext);
 
   const avatarSrc = (user && user.avatar) || DummyProfile;
 
@@ -138,12 +140,25 @@ const Sidebar = ({ user = {}, summaries = [], onOpenSummary, onLogout }) => {
               </button>
               <div className="flex items-center justify-between px-3 py-2">
                 <span>Theme</span>
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input type="checkbox" className="hidden" />
-                  <div className="w-10 h-5 bg-gray-200 rounded-full relative">
-                    <div className="absolute left-0 top-0.5 w-4 h-4 bg-white rounded-full shadow"></div>
-                  </div>
-                </label>
+
+                {/* Toggle switch */}
+                <button
+                  aria-label="Toggle theme"
+                  className={
+                    "relative inline-flex items-center w-10 h-6 p-0.5 rounded-full " +
+                    (theme === "dark" ? "bg-indigo-600" : "bg-gray-300")
+                  }
+                  onClick={toggleTheme}
+                >
+                  <span
+                    className={
+                      "transform transition-transform w-4 h-4 bg-white rounded-full shadow " +
+                      (theme === "dark"
+                        ? "translate-x-[1.25rem]"
+                        : "translate-x-0")
+                    }
+                  />
+                </button>
               </div>
               <button className="w-full text-left px-3 py-2 rounded hover:bg-gray-50">
                 My History

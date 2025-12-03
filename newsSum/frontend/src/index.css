@@ -33,3 +33,71 @@ body {
   background-size: 1200px 100%;
   animation: shimmer 1.2s linear infinite;
 }
+
+/* ---------------------------
+   Simple dark-mode overrides
+   applied when <html> has .dark-mode
+   --------------------------- */
+
+/* change page background */
+html.dark-mode body {
+  background: linear-gradient(180deg, #071226 0%, #071b2b 100%);
+  color: #e5eef8;
+}
+
+/* common bg/text/border overrides used in the app */
+html.dark-mode .bg-white {
+  background-color: #0b1220 !important;
+}
+html.dark-mode .bg-gray-50 {
+  background-color: rgba(255, 255, 255, 0.02) !important;
+}
+html.dark-mode .bg-gray-100 {
+  background-color: rgba(255, 255, 255, 0.03) !important;
+}
+html.dark-mode .bg-gray-200 {
+  background-color: rgba(255, 255, 255, 0.04) !important;
+}
+
+/* text colors */
+html.dark-mode .text-gray-700,
+html.dark-mode .text-gray-600 {
+  color: #dbeafe !important;
+}
+html.dark-mode .text-gray-500 {
+  color: #9fb4d6 !important;
+}
+html.dark-mode .text-gray-400 {
+  color: #8aa3c4 !important;
+}
+
+/* borders */
+html.dark-mode .border-gray-100 {
+  border-color: rgba(255, 255, 255, 0.06) !important;
+}
+
+/* hover backgrounds (buttons, list items) */
+html.dark-mode .hover\\:bg-gray-50:hover {
+  background-color: rgba(255, 255, 255, 0.02) !important;
+}
+
+/* small shadows to better suit dark background */
+html.dark-mode .shadow {
+  box-shadow: 0 6px 18px rgba(2, 6, 23, 0.6) !important;
+}
+
+/* logo images: invert if using monochrome svg (optional) */
+/* html.dark-mode img.logo { filter: brightness(0) invert(1) contrast(1.1); } */
+
+/* tweak the toggle knob background */
+html.dark-mode .bg-gray-300 {
+  background-color: rgba(255, 255, 255, 0.06) !important;
+}
+
+/* ensure cards that used white bg look darker */
+html.dark-mode .card,
+html.dark-mode .panel {
+  background-color: #071427;
+}
+
+/* Add any other overrides as you discover places where classes need tuning. */

@@ -74,8 +74,12 @@ const Dashboard = () => {
           {/* Top section */}
           <div className="flex items-center justify-between mb-6">
             <div>
-              <h1 className="text-2xl font-semibold text-gray-900">Discover news</h1>
-              <p className="text-sm text-gray-500">Summarized, curated, and ready for study.</p>
+              <h1 className="text-2xl font-semibold text-gray-900">
+                Discover news
+              </h1>
+              <p className="text-sm text-gray-500">
+                Summarized, curated, and ready for study.
+              </p>
             </div>
 
             <div>
@@ -110,7 +114,9 @@ const Dashboard = () => {
                   />
                 </svg>
               </div>
-              <h3 className="text-lg font-semibold text-gray-800 mb-2">No articles found</h3>
+              <h3 className="text-lg font-semibold text-gray-800 mb-2">
+                No articles found
+              </h3>
               <p className="text-sm text-gray-500">
                 Try clicking Refresh to get the latest news.
               </p>
@@ -130,7 +136,9 @@ const Dashboard = () => {
                     No image
                   </div>
                   <h3 className="font-semibold text-gray-900">{a.title}</h3>
-                  <p className="text-sm text-gray-600 flex-1">{a.description}</p>
+                  <p className="text-sm text-gray-600 flex-1">
+                    {a.description}
+                  </p>
 
                   <div className="mt-4 flex items-center justify-between">
                     <div className="flex gap-2">
