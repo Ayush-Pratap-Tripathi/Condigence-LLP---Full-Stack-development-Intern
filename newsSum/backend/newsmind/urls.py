@@ -11,6 +11,7 @@ from .views import (
     ReadHistoryClearView,
 )
 from .views_news import WorldNewsProxyAPIView
+from .views_summarize import SummarizeAPIView
 
 urlpatterns = [
     path("signup/", SignupAPIView.as_view(), name="signup"),
@@ -42,4 +43,5 @@ urlpatterns = [
         "history/read/clear/", ReadHistoryClearView.as_view(), name="history-read-clear"
     ),
     path("news/", WorldNewsProxyAPIView.as_view(), name="news-proxy"),
+    path("summarize/", SummarizeAPIView.as_view(), name="summarize"),
 ]
