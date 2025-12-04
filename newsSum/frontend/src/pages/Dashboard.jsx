@@ -6,12 +6,15 @@ import { motion } from "framer-motion";
 import { toast } from "react-toastify";
 import api from "../services/api";
 import ShimmerCard from "../components/ShimmerCard";
+import { useNavigate } from "react-router-dom";
 
 const Dashboard = () => {
   const [user, setUser] = useState(null);
   const [summaries, setSummaries] = useState([]);
   const [articles, setArticles] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  const navigate = useNavigate();
 
   useEffect(() => {
     const u = localStorage.getItem("user");
@@ -95,14 +98,12 @@ const Dashboard = () => {
             <div>
               <button
                 onClick={fetchArticles}
-                className="px-4 py-2 rounded bg-primary text-white"
+                className="px-4 py-2 rounded bg-primary text-blue-700"
               >
                 Refresh
               </button>
             </div>
           </div>
-
-          {/* TAG LIST REMOVED COMPLETELY */}
 
           {/* Content Section */}
           {loading ? (
@@ -173,7 +174,19 @@ const Dashboard = () => {
                       <button className="px-3 py-1 rounded bg-primary text-blue-700 text-sm">
                         Summarize
                       </button>
-                      <button className="px-3 py-1 rounded border text-sm">
+                      <button
+                        onClick={() => {
+                          try {
+                            // store article in sessionStorage as fallback for reload
+                            sessionStorage.setItem(
+                              "currentArticle",
+                              JSON.stringify(a)
+                            );
+                          } catch (e) {}
+                          navigate("/article", { state: { article: a } });
+                        }}
+                        className="px-3 py-1 rounded border text-sm"
+                      >
                         Read full
                       </button>
                     </div>

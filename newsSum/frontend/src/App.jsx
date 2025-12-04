@@ -6,6 +6,7 @@ import Dashboard from "./pages/Dashboard";
 import ProfilePage from "./pages/ProfilePage";
 import PrivateRoute from "./components/PrivateRoute";
 import HistoryPage from "./pages/HistoryPage";
+import ArticlePage from "./pages/ArticlePage";
 
 function App() {
   return (
@@ -37,6 +38,7 @@ function App() {
           </PrivateRoute>
         }
       />
+      <Route path="/article" element={<ArticlePage />} />
     </Routes>
   );
 }
