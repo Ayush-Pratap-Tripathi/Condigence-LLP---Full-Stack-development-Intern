@@ -33,10 +33,41 @@ const Dashboard = () => {
     }
   };
 
+  const getYesterdayDateInKolkata = () => {
+    try {
+      // produce "YYYY-MM-DD" for current date in Asia/Kolkata
+      const todayStr = new Intl.DateTimeFormat("en-CA", {
+        timeZone: "Asia/Kolkata",
+      }).format(new Date()); // e.g. "2025-12-04"
+
+      // build a Date using the components (safe: local midnight for that Y-M-D)
+      const [yyyy, mm, dd] = todayStr.split("-").map((s) => Number(s));
+      const d = new Date(yyyy, mm - 1, dd);
+
+      // subtract one day
+      d.setDate(d.getDate() - 1);
+
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, "0");
+      const day = String(d.getDate()).padStart(2, "0");
+      return `${y}-${m}-${day}`;
+    } catch (e) {
+      // fallback: use local yesterday (less accurate if user isn't in IST)
+      const d = new Date();
+      d.setDate(d.getDate() - 1);
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, "0");
+      const day = String(d.getDate()).padStart(2, "0");
+      return `${y}-${m}-${day}`;
+    }
+  };
+
   const fetchArticles = async (opts = {}) => {
     setLoading(true);
     try {
-      // sample params: { category: 'technology', max: 12 }
+      // compute date (allow override via opts.date for testing)
+      const dateToUse = opts.date || getYesterdayDateInKolkata();
+
       const params = {
         max: opts.max || 12,
         page: opts.page || 1,
@@ -45,10 +76,12 @@ const Dashboard = () => {
         country: opts.country || undefined,
         lang: opts.lang || "en",
         sortby: opts.sortby || undefined,
+        // IMPORTANT: pass yesterday's date
+        date: dateToUse,
       };
 
+      // adjust path if your axios baseURL differs; this assumes api.get("/news/") maps to /api/auth/news/
       const res = await api.get("/news/", { params });
-      // if you added a helper: const res = await getNews(params);
       const articles = res.data.articles || [];
       setArticles(articles);
     } catch (err) {

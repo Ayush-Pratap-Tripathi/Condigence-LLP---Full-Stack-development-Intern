@@ -1,98 +1,135 @@
-# backend/newsmind/views_news.py
 import requests
 from django.conf import settings
+from django.utils import timezone
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status, permissions
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import cache_page
+from urllib.parse import urlparse
 
-# Cache the endpoint for 5 minutes to reduce calls to upstream
-CACHE_SECONDS = 60 * 5
+CACHE_SECONDS = 60 * 5  # 5 minutes cache
 
 
 @method_decorator(cache_page(CACHE_SECONDS), name="dispatch")
-class NewsProxyAPIView(APIView):
-    """
-    GET /api/news/?q=&category=&country=&lang=&max=&page=
-    Proxies to GNews top-headlines or search endpoint depending on presence of `q`.
-    """
-
-    permission_classes = [permissions.IsAuthenticated]  # require login
+class WorldNewsProxyAPIView(APIView):
+    permission_classes = [permissions.IsAuthenticated]  # keep authentication if desired
 
     def get(self, request):
-        api_key = getattr(settings, "GNEWS_API_KEY", "")
+        api_key = getattr(settings, "WORLDNEWS_API_KEY", "")
         if not api_key:
             return Response(
-                {"detail": "News provider key not configured."},
+                {"detail": "WorldNews API key not configured."},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
-        q = request.GET.get("q", "").strip()
-        category = request.GET.get("category")
-        country = request.GET.get("country")
-        lang = request.GET.get("lang")
-        max_results = request.GET.get("max", request.GET.get("pageSize", 12))
-        page = request.GET.get("page", 1)
-        sortby = request.GET.get("sortby")  # optional
+        # Build today's date in YYYY-MM-DD (server timezone)
+        today = (
+            timezone.localtime(timezone.now()).date().isoformat()
+        )  # e.g. '2025-12-04'
+        # You can optionally allow client to override date via query param (for debugging)
+        date_param = request.GET.get("date", today)
 
-        if q:
-            endpoint = "https://gnews.io/api/v4/search?q=Google&lang=en&max=5&apikey="
-        else:
-            endpoint = "https://gnews.io/api/v4/search?q=Google&lang=en&max=5&apikey="
+        # allow country/language override but default to us/en
+        country = request.GET.get("source-country", "us")
+        language = request.GET.get("language", "en")
 
+        endpoint = "https://api.worldnewsapi.com/top-news"
         params = {
-            "apikey": api_key,
-            "max": max_results,
-            "page": page,
+            "source-country": country,
+            "language": language,
+            "date": date_param,
         }
-        if lang:
-            params["lang"] = lang
-        if category and not q:
-            params["category"] = category
-        if country:
-            params["country"] = country
-        if q:
-            params["q"] = q
-        if sortby:
-            params["sortby"] = sortby
+
+        headers = {"x-api-key": api_key}
 
         try:
-            r = requests.get(endpoint, params=params, timeout=8)
-            r.raise_for_status()
+            resp = requests.get(endpoint, params=params, headers=headers, timeout=10)
+            resp.raise_for_status()
         except requests.RequestException as e:
             return Response(
-                {"detail": "Upstream error contacting GNews", "error": str(e)},
+                {"detail": "Failed contacting WorldNewsAPI", "error": str(e)},
                 status=status.HTTP_502_BAD_GATEWAY,
             )
 
-        data = r.json()
-        upstream_articles = data.get("articles", [])
+        data = resp.json()
 
-        # Normalise shape for frontend
-        articles = []
-        for i, a in enumerate(upstream_articles):
-            # GNews returns keys like title, description, content, image, publishedAt, source:{name}
-            source_name = None
-            if isinstance(a.get("source"), dict):
-                source_name = a["source"].get("name")
+        # data expected structure: {"top_news":[ {"news":[ {...}, {...} ]}, ... ], "language":"en","country":"us"}
+        top_news = data.get("top_news") or []
+        normalized = []
+
+        # flatten and normalize
+        for group in top_news:
+            news_list = group.get("news", []) or []
+            for item in news_list:
+                # fields in provider: id, title, text, summary, url, image, publish_date, author, authors, language, source_country, sentiment
+                art_id = item.get("id") or item.get("url") or item.get("title")[:80]
+                title = item.get("title")
+                # prefer `text` for full content; fallback to `summary`
+                content = item.get("text") or item.get("summary") or ""
+                description = (
+                    item.get("summary") or (content[:300] + "...") if content else ""
+                )
+                image = item.get("image")
+                publishedAt = None
+                if item.get("publish_date"):
+                    # provider returns 'YYYY-MM-DD HH:MM:SS' — keep as ISO-ish
+                    publishedAt = item.get("publish_date")
+                source_name = None
+                # try parse source from url host if provided
+                url = item.get("url")
+                if url:
+                    try:
+                        parsed = urlparse(url)
+                        source_name = parsed.hostname
+                    except Exception:
+                        source_name = None
+                # also fallback to author or source_country
+                if not source_name:
+                    if item.get("author"):
+                        source_name = item.get("author")
+                    else:
+                        source_name = item.get("source_country")
+
+                normalized.append(
+                    {
+                        "id": art_id,
+                        "title": title,
+                        "description": description,
+                        "content": content,
+                        "url": url,
+                        "image": image,
+                        "publishedAt": publishedAt,
+                        "source": source_name,
+                        "raw": item,
+                    }
+                )
+
+        # deduplicate by URL and Title
+        seen_urls = set()
+        deduped = []
+        for art in normalized:
+            url = art.get("url")
+            if url:
+                if url in seen_urls:
+                    continue
+                seen_urls.add(url)
+                deduped.append(art)
             else:
-                source_name = a.get("source")
-            # Use url as unique id if available
-            art_id = a.get("url") or f"{a.get('title')[:60]}_{i}"
-            articles.append(
-                {
-                    "id": art_id,
-                    "title": a.get("title"),
-                    "description": a.get("description"),
-                    "content": a.get("content") or a.get("description"),
-                    "image": a.get("image"),
-                    "publishedAt": a.get("publishedAt"),
-                    "source": source_name,
-                    "raw": a,
-                }
-            )
+                deduped.append(art)
+
+        seen_titles = set()
+        final_articles = []
+        for art in deduped:
+            title = (art.get("title") or "").strip().lower()
+            if title in seen_titles:
+                continue
+            seen_titles.add(title)
+            final_articles.append(art)
 
         return Response(
-            {"total": data.get("totalArticles", len(articles)), "articles": articles}
+            {
+                "total": len(final_articles),
+                "articles": final_articles,
+            }
         )
