@@ -104,6 +104,41 @@ export default function ArticlePage() {
     ? new Date(article.publishedAt).toLocaleString()
     : "";
 
+  // Small internal component to handle image loading errors gracefully.
+  // Shows the same "Failed to load image: <url>" message as on the dashboard when load fails.
+  function ArticleImage({ src, title }) {
+    const [error, setError] = useState(null);
+    const [loaded, setLoaded] = useState(false);
+
+    if (!src) {
+      return (
+        <div className="w-full h-56 bg-gray-100 flex items-center justify-center text-gray-400">
+          No image
+        </div>
+      );
+    }
+
+    if (error) {
+      return (
+        <div className="w-full h-56 flex items-center justify-center text-sm text-red-500 px-3 text-center">
+          {`Failed to load image: ${src}`}
+        </div>
+      );
+    }
+
+    return (
+      <img
+        src={src}
+        alt={title}
+        className="w-full max-h-96 object-cover"
+        onLoad={() => setLoaded(true)}
+        onError={() => {
+          setError(true);
+        }}
+      />
+    );
+  }
+
   return (
     <div className="flex h-screen">
       <Sidebar
@@ -153,21 +188,8 @@ export default function ArticlePage() {
           </div>
 
           <div className="bg-white rounded-lg shadow overflow-hidden">
-            {article.image ? (
-              <img
-                src={article.image}
-                alt={article.title}
-                className="w-full max-h-96 object-cover"
-                onError={(e) => {
-                  e.currentTarget.onerror = null;
-                  e.currentTarget.src = "/assets/image_placeholder.png";
-                }}
-              />
-            ) : (
-              <div className="w-full h-56 bg-gray-100 flex items-center justify-center text-gray-400">
-                No image
-              </div>
-            )}
+            {/* Use the ArticleImage component to render the image with graceful error handling */}
+            <ArticleImage src={article.image} title={article.title} />
 
             <div className="p-6">
               {article.description ? (
