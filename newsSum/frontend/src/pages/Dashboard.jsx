@@ -104,6 +104,46 @@ const Dashboard = () => {
     window.location.href = "/login";
   };
 
+  // --- Small child component to handle image load errors and display message ---
+  function ArticleImage({ src, title }) {
+    const [error, setError] = useState(null);
+    const [loaded, setLoaded] = useState(false);
+
+    // If no src provided, render the "No image" placeholder
+    if (!src) {
+      return (
+        <div className="w-full h-full flex items-center justify-center text-gray-400">
+          No image
+        </div>
+      );
+    }
+
+    // If error occurred while loading, show the requested message
+    if (error) {
+      // Use the src (URL) as the "error" information because browsers don't expose HTTP status in img onError
+      return (
+        <div className="w-full h-full flex items-center justify-center text-sm text-red-500 px-3 text-center">
+          {`Failed to load image: ${src}`}
+        </div>
+      );
+    }
+
+    return (
+      <img
+        src={src}
+        alt={title}
+        className="w-full h-full object-cover"
+        onLoad={() => setLoaded(true)}
+        onError={(e) => {
+          // mark error; browsers don't provide detailed error info for images
+          // but we can show the URL as the error detail as requested
+          setError(true);
+        }}
+        // avoid infinite onError loop if src replaced; we don't change src here
+      />
+    );
+  }
+
   return (
     <div className="flex h-screen">
       <Sidebar
@@ -177,25 +217,7 @@ const Dashboard = () => {
                   className="bg-white rounded-lg shadow p-4 flex flex-col"
                 >
                   <div className="h-40 bg-gray-100 rounded mb-3 overflow-hidden">
-                    {a.image ? (
-                      <img
-                        src={a.image}
-                        alt={a.title}
-                        className="w-full h-full object-cover"
-                        onError={(e) => {
-                          // avoid infinite loop
-                          e.currentTarget.onerror = null;
-                          // fallback to a local placeholder (put this in public/assets/)
-                          e.currentTarget.src = "/assets/image_placeholder.png";
-                          // alternatively, if you implemented an image-proxy endpoint, use:
-                          // e.currentTarget.src = `/api/image-proxy/?url=${encodeURIComponent(a.image)}`;
-                        }}
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-gray-400">
-                        No image
-                      </div>
-                    )}
+                    <ArticleImage src={a.image} title={a.title} />
                   </div>
                   <h3 className="font-semibold text-gray-900">{a.title}</h3>
                   <p className="text-sm text-gray-600 flex-1">
