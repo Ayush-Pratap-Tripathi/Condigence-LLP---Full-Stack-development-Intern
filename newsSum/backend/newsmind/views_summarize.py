@@ -1,187 +1,279 @@
 # backend/newsmind/views_summarize.py
+
 import os
 import time
+import re
+import math
 from datetime import datetime
 from typing import List
 
-from django.conf import settings
 from django.contrib.auth import get_user_model
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import permissions, status
 from rest_framework.parsers import JSONParser
 
-from pymongo import MongoClient, errors as pymongo_errors
-
-# Hugging Face client
+from pymongo import MongoClient
 from huggingface_hub import InferenceClient
-from huggingface_hub.utils import hf_raise_for_status
+
+# Try to import tokenizer for accurate token counting; if not available, we'll fallback.
+try:
+    from transformers import AutoTokenizer
+
+    TRANSFORMERS_AVAILABLE = True
+except Exception:
+    TRANSFORMERS_AVAILABLE = False
 
 User = get_user_model()
 
-# --- Configuration (tweak if needed) ---
-HF_API_KEY = os.getenv("HF_API_KEY", "")  # your HF token
+# ---- CONFIG ----
+HF_API_KEY = os.getenv("HF_API_KEY", "")
 HF_MODEL = os.getenv("HF_MODEL", "google/pegasus-xsum")
+
 MONGO_URI = os.getenv("MONGO_URI", "")
 MONGO_DBNAME = os.getenv("MONGO_DBNAME", "newssum_mongo")
 
-CHUNK_CHAR_SIZE = int(os.getenv("SUMMARY_CHUNK_CHAR", "16000"))
-CHUNK_OVERLAP = int(os.getenv("SUMMARY_CHUNK_OVERLAP", "300"))
+# token threshold for single-shot summarization (you requested 510)
+MAX_TOKENS = int(os.getenv("SUMMARY_MAX_TOKENS", "510"))
 
-# A small pause between calls to reduce throttling
-HF_CALL_SLEEP = float(os.getenv("HF_CALL_SLEEP", "0.3"))
+# sleep between HF calls (seconds)
+HF_CALL_SLEEP = float(os.getenv("HF_CALL_SLEEP", "0.35"))
 
-# Create a single InferenceClient instance (safe to reuse)
-if not HF_API_KEY:
-    INFERENCE_CLIENT = None
-else:
-    try:
-        INFERENCE_CLIENT = InferenceClient(provider="hf-inference", api_key=HF_API_KEY)
-    except Exception:
-        # fallback: try constructing an InferenceApi for the model (older interface)
-        INFERENCE_CLIENT = None
+# Create HF client
+HF_CLIENT = None
+if HF_API_KEY:
+    HF_CLIENT = InferenceClient(provider="hf-inference", api_key=HF_API_KEY)
 
 
-def _chunk_text(
-    text: str, size: int = CHUNK_CHAR_SIZE, overlap: int = CHUNK_OVERLAP
+# --- Helpers: Mongo ---
+def connect_mongo():
+    if not MONGO_URI:
+        raise RuntimeError("MONGO_URI is not configured.")
+    client = MongoClient(MONGO_URI)
+    db = client[MONGO_DBNAME]
+    return client, db
+
+
+# --- Helpers: Text prep (unchanged) ---
+def prepare_input_text(article: dict) -> str:
+    """
+    Build a clean input string for Pegasus.
+    We'll prefer: content -> raw.text -> description.
+    The model will receive: "<title>\n\n<body>"
+    """
+    title = article.get("title", "") or ""
+    desc = article.get("description", "") or ""
+    content = article.get("content", "") or ""
+    raw_text = (article.get("raw") or {}).get("text", "") or ""
+
+    body = content.strip() or raw_text.strip() or desc.strip()
+    input_text = f"{title.strip()}\n\n{body.strip()}"
+    return input_text.strip()
+
+
+# --- Helpers: Token counting ---
+_tokenizer = None
+
+
+def _get_tokenizer():
+    global _tokenizer
+    if _tokenizer is not None:
+        return _tokenizer
+    if TRANSFORMERS_AVAILABLE:
+        try:
+            # use the model name if possible; fallback to generic 'facebook/bart-large-cnn' tokenizer if model not found locally
+            _tokenizer = AutoTokenizer.from_pretrained(HF_MODEL, use_fast=True)
+            return _tokenizer
+        except Exception:
+            try:
+                _tokenizer = AutoTokenizer.from_pretrained(
+                    "sshleifer/distilbart-cnn-12-6", use_fast=True
+                )
+                return _tokenizer
+            except Exception:
+                _tokenizer = None
+                return None
+    return None
+
+
+def estimate_token_count(text: str) -> int:
+    """
+    Return an integer token estimate.
+    Prefer using transformers tokenizer if available, else fallback to char heuristic (1 token ≈ 4 characters).
+    This fallback intentionally overestimates slightly to be safe.
+    """
+    if not text:
+        return 0
+    tok = _get_tokenizer()
+    if tok:
+        try:
+            # encode without adding special tokens to estimate raw tokens
+            # fast tokenizers support encode/encode_plus -> we use encode
+            ids = tok.encode(text, add_special_tokens=False)
+            return len(ids)
+        except Exception:
+            # if tokenizer fails for any reason, fallback
+            pass
+    # fallback heuristic: average token length 4 chars
+    return math.ceil(len(text) / 4)
+
+
+# --- Helpers: Sentence-based chunking by tokens ---
+_sentence_split_re = re.compile(r"(?<=[\.\!\?])\s+")
+
+
+def chunk_text_by_sentences_and_tokens(
+    text: str, max_tokens: int = MAX_TOKENS
 ) -> List[str]:
+    """
+    Split `text` into chunks such that each chunk ends at a sentence boundary and
+    has token_count <= max_tokens (based on estimate_token_count).
+    If a single sentence exceeds max_tokens, it will be truncated safely to max_tokens characters (not tokens) as a last resort.
+    """
     if not text:
         return []
-    text = text.strip()
-    n = len(text)
-    if n <= size:
-        return [text]
+
+    # Normalize whitespace
+    text = re.sub(r"\s+", " ", text).strip()
+    # Split into sentences (approx.)
+    sentences = _sentence_split_re.split(text)
     chunks = []
-    start = 0
-    while start < n:
-        end = start + size
-        chunk = text[start:end]
-        chunks.append(chunk.strip())
-        start = end - overlap
-        if start < 0:
-            start = 0
+    cur_sentences = []
+    cur_text = ""
+    cur_tokens = 0
+
+    for s in sentences:
+        s = s.strip()
+        if not s:
+            continue
+        s_tokens = estimate_token_count(s)
+        # if single sentence alone > max_tokens, truncate it (last resort)
+        if s_tokens > max_tokens:
+            # truncate by characters conservatively
+            # We attempt to find a point close to max_tokens*4 chars
+            approx_chars = max_tokens * 4
+            truncated = s[
+                : max(approx_chars - 50, 1000)
+            ].rstrip()  # keep at least some text
+            # finalize current chunk if exists
+            if cur_sentences:
+                chunks.append(" ".join(cur_sentences).strip())
+                cur_sentences = []
+            chunks.append(truncated)
+            cur_text = ""
+            cur_tokens = 0
+            continue
+
+        # if adding this sentence would exceed limit, flush current chunk
+        if cur_sentences and (cur_tokens + s_tokens) > max_tokens:
+            chunks.append(" ".join(cur_sentences).strip())
+            cur_sentences = [s]
+            cur_tokens = s_tokens
+        else:
+            cur_sentences.append(s)
+            cur_tokens += s_tokens
+
+    if cur_sentences:
+        chunks.append(" ".join(cur_sentences).strip())
+
     return chunks
 
 
-def _connect_mongo():
-    if not MONGO_URI:
-        raise RuntimeError("MONGO_URI not configured.")
-    try:
-        client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=5000)
-        client.server_info()  # test connection
-        db = client[MONGO_DBNAME]
-        return client, db
-    except pymongo_errors.PyMongoError as e:
-        raise RuntimeError(f"Failed to connect to MongoDB: {e}")
-
-
-def _hf_summarize_via_client(text: str):
+# --- HF summarization wrapper (single-shot) ---
+def run_summarization_once(text: str) -> str:
     """
-    Summarize `text` using the huggingface_hub.InferenceClient.
-    Returns the generated summary string on success, raises RuntimeError on failure.
+    Call the HF InferenceClient for one-shot summarization of `text`.
+    Returns the summary string or raises RuntimeError on failure.
     """
-    if INFERENCE_CLIENT is None:
+    if HF_CLIENT is None:
         raise RuntimeError(
-            "InferenceClient not configured. Ensure HF_API_KEY is set and huggingface_hub is installed."
+            "Hugging Face Inference client not configured (HF_API_KEY missing)."
         )
 
-    # Use the client.summarization helper if available; otherwise use the generic inference API call
     try:
-        # several client methods exist; prefer the convenience method if present
-        if hasattr(INFERENCE_CLIENT, "summarization"):
-            # returns a list/dict depending on model; handle shapes below
-            out = INFERENCE_CLIENT.summarization(text, model=HF_MODEL)
-        else:
-            # fallback: use generic inference API for model
-            # InferenceClient.model_inference/model_... interfaces vary by version.
-            # Use the InferenceApi convenience wrapper if needed:
-            api = InferenceApi(repo_id=HF_MODEL, token=HF_API_KEY)
-            out = api(inputs=text, parameters={"max_length": 200, "min_length": 30})
+        result = HF_CLIENT.summarization(text, model=HF_MODEL)
     except Exception as e:
-        # include underlying message for easier debugging (do not leak API keys)
         raise RuntimeError(f"Hugging Face inference error: {e}")
 
-    # normalize output
-    # Many HF summarization models return a list like [{"summary_text": "..."}]
-    try:
-        if isinstance(out, list) and len(out):
-            first = out[0]
-            if isinstance(first, dict) and "summary_text" in first:
+    # normalize result
+    if isinstance(result, list) and len(result) > 0:
+        first = result[0]
+        if isinstance(first, dict):
+            if "summary_text" in first:
                 return first["summary_text"]
-            # sometimes it returns [{"generated_text": "..."}]
-            if isinstance(first, dict) and "generated_text" in first:
+            if "generated_text" in first:
                 return first["generated_text"]
-            # as fallback, string-ize the first element
+            # fallback: stringify value fields
             return str(first)
-        if isinstance(out, dict):
-            # might be {"summary_text": "..."} or other shapes
-            if "summary_text" in out:
-                return out["summary_text"]
-            if "generated_text" in out:
-                return out["generated_text"]
-            # fallback to stringification
-            return str(out)
-        # maybe it's already a plain string
-        return str(out)
-    except Exception as e:
-        raise RuntimeError(f"Failed to parse HF response: {e}")
+        return str(first)
+
+    if isinstance(result, dict):
+        return result.get("summary_text") or result.get("generated_text") or str(result)
+
+    return str(result)
 
 
+# --- Recursive summarization strategy ---
+def summarize_recursive(text: str, max_tokens: int = MAX_TOKENS) -> str:
+    """
+    If text token count <= max_tokens -> one-shot summarize.
+    Else -> chunk into sentence-safe pieces each <= max_tokens, summarize each chunk,
+            combine chunk-summaries and call summarize_recursive on the combined summary.
+    This reduces arbitrarily long text hierarchically.
+    """
+    if not text or not text.strip():
+        return ""
+
+    token_count = estimate_token_count(text)
+    # one-shot
+    if token_count <= max_tokens:
+        return run_summarization_once(text)
+
+    # else chunk
+    chunks = chunk_text_by_sentences_and_tokens(text, max_tokens=max_tokens)
+    if not chunks:
+        # extreme fallback: trim text to a safe char length
+        trimmed = text[: max_tokens * 4]
+        return run_summarization_once(trimmed)
+
+    chunk_summaries = []
+    for ch in chunks:
+        # summarize each chunk (safe single-shot)
+        s = run_summarization_once(ch)
+        chunk_summaries.append(s)
+        # polite sleep
+        time.sleep(HF_CALL_SLEEP)
+
+    combined = "\n\n".join(chunk_summaries).strip()
+    # recurse: combined summary likely much smaller
+    return summarize_recursive(combined, max_tokens=max_tokens)
+
+
+# --- API View ---
 class SummarizeAPIView(APIView):
     permission_classes = [permissions.IsAuthenticated]
     parser_classes = [JSONParser]
 
     def post(self, request):
         user = request.user
-        data = request.data
+        article = request.data
 
-        if not data:
+        if not article:
             return Response(
-                {"detail": "Missing article data in request body."},
+                {"detail": "Missing article data."}, status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # prepare input (title + body)
+        input_text = prepare_input_text(article)
+        if not input_text:
+            return Response(
+                {"detail": "Article contains no text to summarize."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        title = data.get("title") or ""
-        url = data.get("url") or ""
-        content = data.get("content") or data.get("text") or ""
-        description = data.get("description") or data.get("summary") or ""
-
-        # Compose text (metadata + content)
-        composed_text = ""
-        if title:
-            composed_text += f"Title: {title}\n\n"
-        if url:
-            composed_text += f"URL: {url}\n\n"
-        if description:
-            composed_text += f"Description: {description}\n\n"
-        if content:
-            composed_text += f"Content:\n{content}\n"
-
-        # chunk the text if it's large
         try:
-            chunks = _chunk_text(
-                composed_text, size=CHUNK_CHAR_SIZE, overlap=CHUNK_OVERLAP
-            )
-            if not chunks:
-                return Response(
-                    {"detail": "Article has no textual content to summarize."},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-
-            if len(chunks) == 1:
-                # one-shot
-                generated_summary = _hf_summarize_via_client(chunks[0])
-            else:
-                # multi-stage summarization: summarize each chunk, then summarize combined chunk summaries
-                chunk_summaries = []
-                for ch in chunks:
-                    s = _hf_summarize_via_client(ch)
-                    chunk_summaries.append(s)
-                    time.sleep(HF_CALL_SLEEP)
-                combined = "\n\n".join(chunk_summaries)
-                generated_summary = _hf_summarize_via_client(combined)
+            generated_summary = summarize_recursive(input_text, max_tokens=MAX_TOKENS)
         except RuntimeError as e:
-            # map to 502 to indicate upstream (HF) failure
             return Response(
                 {"detail": "AI summarization failed", "error": str(e)},
                 status=status.HTTP_502_BAD_GATEWAY,
@@ -192,9 +284,9 @@ class SummarizeAPIView(APIView):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
-        # Save to MongoDB
+        # Save to MongoDB (unchanged)
         try:
-            client, db = _connect_mongo()
+            client, db = connect_mongo()
             coll_name = getattr(user, "mongo_collection_name", None)
             if not coll_name:
                 coll_name = f"user_{user.id}_summaries"
@@ -205,19 +297,19 @@ class SummarizeAPIView(APIView):
             doc = {
                 "user_id": user.id,
                 "created_at": datetime.utcnow(),
-                "article": data,
+                "article": article,
                 "summary": generated_summary,
-                "title": title,
-                "url": url,
-                "image": data.get("image"),
-                "publishedAt": data.get("publishedAt"),
-                "source": data.get("source"),
+                "title": article.get("title"),
+                "url": article.get("url"),
+                "image": article.get("image"),
+                "publishedAt": article.get("publishedAt"),
+                "source": article.get("source"),
             }
             res = col.insert_one(doc)
             saved_id = str(res.inserted_id)
         except Exception as e:
             return Response(
-                {"detail": "Failed saving to MongoDB", "error": str(e)},
+                {"detail": "Failed to save summary", "error": str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
         finally:

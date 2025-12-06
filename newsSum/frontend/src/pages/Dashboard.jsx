@@ -7,6 +7,8 @@ import { toast } from "react-toastify";
 import api from "../services/api";
 import ShimmerCard from "../components/ShimmerCard";
 import { useNavigate } from "react-router-dom";
+import SummaryModal from "../components/SummaryModal";
+import { runSummarizeFlow } from "../services/summarizeHandler";
 
 const Dashboard = () => {
   const [user, setUser] = useState(null);
@@ -15,6 +17,30 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true);
 
   const navigate = useNavigate();
+
+  const [modalOpen, setModalOpen] = useState(false);
+  const [activeArticle, setActiveArticle] = useState(null);
+  const [modalLoading, setModalLoading] = useState(false);
+  const [modalSummary, setModalSummary] = useState(null);
+
+  const openAndSummarize = async (article) => {
+    setActiveArticle(article);
+    setModalSummary(null);
+    setModalOpen(true);
+    try {
+      await runSummarizeFlow(article, {
+        setLoading: setModalLoading,
+        setSummary: setModalSummary,
+        toast,
+        onSaved: () => {
+          // optionally refresh sidebar summaries list
+          fetchSummaries();
+        },
+      });
+    } catch (e) {
+      console.log(e);
+    }
+  };
 
   useEffect(() => {
     const u = localStorage.getItem("user");
@@ -226,9 +252,13 @@ const Dashboard = () => {
 
                   <div className="mt-4 flex items-center justify-between">
                     <div className="flex gap-2">
-                      <button className="px-3 py-1 rounded bg-primary text-blue-700 text-sm">
+                      <button
+                        onClick={() => openAndSummarize(a)}
+                        className="px-3 py-1 rounded bg-primary text-white text-sm"
+                      >
                         Summarize
                       </button>
+
                       <button
                         onClick={() => {
                           try {
@@ -253,6 +283,21 @@ const Dashboard = () => {
           )}
         </div>
       </main>
+      <SummaryModal
+        open={modalOpen}
+        onClose={() => {
+          setModalOpen(false);
+          setModalSummary(null);
+          setActiveArticle(null);
+        }}
+        article={activeArticle || {}}
+        loading={modalLoading}
+        summary={modalSummary}
+        onDownload={() => {
+          // placeholder: implement actual pdf download later
+          toast.info("Download will be implemented soon.");
+        }}
+      />
     </div>
   );
 };

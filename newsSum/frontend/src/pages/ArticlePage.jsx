@@ -5,6 +5,8 @@ import { toast } from "react-toastify";
 import { motion } from "framer-motion";
 import Header from "../components/Header";
 import Sidebar from "../components/Sidebar";
+import SummaryModal from "../components/SummaryModal";
+import { runSummarizeFlow } from "../services/summarizeHandler";
 
 export default function ArticlePage() {
   const location = useLocation();
@@ -13,6 +15,10 @@ export default function ArticlePage() {
   const [article, setArticle] = useState(null);
   const [loading, setLoading] = useState(true);
   const [summarizing, setSummarizing] = useState(false);
+
+  const [modalOpen, setModalOpen] = useState(false);
+  const [modalLoading, setModalLoading] = useState(false);
+  const [modalSummary, setModalSummary] = useState(null);
 
   useEffect(() => {
     // priority: location.state (navigate passed article), then sessionStorage fallback
@@ -53,18 +59,19 @@ export default function ArticlePage() {
 
   const handleSummarize = async () => {
     if (!article) return;
-    setSummarizing(true);
+    setModalOpen(true);
+    setModalSummary(null);
     try {
-      // placeholder: call your backend summarize endpoint here
-      // example:
-      // const res = await api.post("/summarize/", { title: article.title, content: article.content, url: article.url, source: article.source });
-      // toast.success("Summary generated and saved.");
-      toast.info("Summarize action not implemented yet.");
-    } catch (err) {
-      console.error("Summarize failed", err);
-      toast.error("Failed to summarize.");
-    } finally {
-      setSummarizing(false);
+      await runSummarizeFlow(article, {
+        setLoading: setModalLoading,
+        setSummary: setModalSummary,
+        toast,
+        onSaved: () => {
+          // refresh sidebar summaries (if you have fetchSummaries passed down)
+        },
+      });
+    } catch (e) {
+      console.log(e);
     }
   };
 
@@ -232,6 +239,19 @@ export default function ArticlePage() {
           </div>
         </motion.div>
       </main>
+      <SummaryModal
+        open={modalOpen}
+        onClose={() => {
+          setModalOpen(false);
+          setModalSummary(null);
+        }}
+        article={article}
+        loading={modalLoading}
+        summary={modalSummary}
+        onDownload={() => {
+          toast.info("Download will be implemented soon.");
+        }}
+      />
     </div>
   );
 }

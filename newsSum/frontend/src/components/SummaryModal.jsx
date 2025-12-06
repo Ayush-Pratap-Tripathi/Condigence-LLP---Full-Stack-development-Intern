@@ -12,7 +12,7 @@ import { FiX, FiDownload } from "react-icons/fi";
  * - article: object (title, publishedAt, url)
  * - loading: boolean
  * - summary: string|null
- * - onDownload: () => void  // handler for download button
+ * - onDownload: () => void 
  */
 export default function SummaryModal({
   open,
