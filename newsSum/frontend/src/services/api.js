@@ -50,3 +50,9 @@ export const getNews = (params = {}) => {
   // params: { q, category, country, lang, max, page, sortby }
   return api.get("/news/", { params });
 };
+
+export const getUserSummaries = async () => {
+  const res = await api.get("/../summaries/");
+  return res.data; // { summaries: [...] }
+};
+

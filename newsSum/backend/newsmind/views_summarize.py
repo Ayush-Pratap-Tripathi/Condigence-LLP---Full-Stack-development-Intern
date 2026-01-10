@@ -326,3 +326,32 @@ class SummarizeAPIView(APIView):
             },
             status=status.HTTP_201_CREATED,
         )
+
+
+class UserSummaryListAPIView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+
+        if not user.mongo_collection_name:
+            return Response({"summaries": []}, status=status.HTTP_200_OK)
+
+        client = MongoClient(os.getenv("MONGO_URI"))
+        db = client["newssum_mongo"]
+        collection = db[user.mongo_collection_name]
+
+        summaries = list(
+            collection.find(
+                {},
+                {"_id": 1, "title": 1, "summary": 1, "created_at": 1, "source_url": 1},
+            ).sort("created_at", -1)
+        )
+
+        # Convert ObjectId → string
+        for s in summaries:
+            s["_id"] = str(s["_id"])
+
+        client.close()
+
+        return Response({"summaries": summaries}, status=status.HTTP_200_OK)

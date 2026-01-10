@@ -9,6 +9,7 @@ import ShimmerCard from "../components/ShimmerCard";
 import { useNavigate } from "react-router-dom";
 import SummaryModal from "../components/SummaryModal";
 import { runSummarizeFlow } from "../services/summarizeHandler";
+import { getUserSummaries } from "../services/api";
 
 const Dashboard = () => {
   const [user, setUser] = useState(null);
@@ -22,6 +23,7 @@ const Dashboard = () => {
   const [activeArticle, setActiveArticle] = useState(null);
   const [modalLoading, setModalLoading] = useState(false);
   const [modalSummary, setModalSummary] = useState(null);
+  const [savedSummaryArticle, setSavedSummaryArticle] = useState(null);
 
   const openAndSummarize = async (article) => {
     setActiveArticle(article);
@@ -52,10 +54,10 @@ const Dashboard = () => {
 
   const fetchSummaries = async () => {
     try {
-      // In future -> const res = await api.get("/summaries/");
-      setSummaries([]); // for now empty
+      const res = await getUserSummaries();
+      setSummaries(res.summaries || []);
     } catch (err) {
-      console.error(err);
+      console.error("Failed to fetch summaries", err);
     }
   };
 
@@ -119,7 +121,16 @@ const Dashboard = () => {
   };
 
   const handleOpenSummary = (s) => {
-    toast.info(`Open summary: ${s.title}`);
+    setSavedSummaryArticle({
+      title: "Saved Summary",
+      source: "Your Library",
+      url: s.source_url,
+      publishedAt: s.created_at,
+    });
+
+    setModalSummary(s.summary);
+    setModalLoading(false);
+    setModalOpen(true);
   };
 
   const handleLogout = () => {
@@ -289,12 +300,12 @@ const Dashboard = () => {
           setModalOpen(false);
           setModalSummary(null);
           setActiveArticle(null);
+          setSavedSummaryArticle(null);
         }}
-        article={activeArticle || {}}
+        article={activeArticle || savedSummaryArticle || {}}
         loading={modalLoading}
         summary={modalSummary}
         onDownload={() => {
-          // placeholder: implement actual pdf download later
           toast.info("Download will be implemented soon.");
         }}
       />

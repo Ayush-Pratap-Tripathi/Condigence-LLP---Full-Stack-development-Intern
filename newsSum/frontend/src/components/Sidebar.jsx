@@ -69,7 +69,7 @@ const Sidebar = ({ user = {}, summaries = [], onOpenSummary, onLogout }) => {
           {summaries && summaries.length > 0 ? (
             summaries.map((s) => (
               <motion.div
-                key={s.id}
+                key={s._id}
                 whileHover={{ scale: 1.02 }}
                 className="flex items-center justify-between rounded-md hover:bg-surface p-2 cursor-pointer"
               >
@@ -77,12 +77,9 @@ const Sidebar = ({ user = {}, summaries = [], onOpenSummary, onLogout }) => {
                   className="flex items-center gap-3"
                   onClick={() => onOpenSummary?.(s)}
                 >
-                  <div className="w-8 h-8 rounded-md bg-primary/10 flex items-center justify-center text-primary">
-                    S
-                  </div>
                   {!collapsed && (
                     <div className="text-sm text-gray-800 truncate">
-                      {s.title}
+                      {s.title.slice(0, 25) + "..."}
                     </div>
                   )}
                 </div>
