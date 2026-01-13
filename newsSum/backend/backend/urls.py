@@ -17,10 +17,15 @@ Including another URLconf
 
 from django.contrib import admin
 from django.urls import path, include
-from newsmind.views_summarize import UserSummaryListAPIView
+from newsmind.views_summarize import (
+    UserSummaryListAPIView,
+    UserSummaryDeleteAPIView,
+)
+
 
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("api/auth/", include("newsmind.urls")),
     path("api/summaries/", UserSummaryListAPIView.as_view()),
+    path("api/summaries/<str:summary_id>/", UserSummaryDeleteAPIView.as_view()),
 ]

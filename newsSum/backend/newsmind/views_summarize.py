@@ -16,6 +16,9 @@ from rest_framework.parsers import JSONParser
 from pymongo import MongoClient
 from huggingface_hub import InferenceClient
 
+from bson import ObjectId
+from bson.errors import InvalidId
+
 # Try to import tokenizer for accurate token counting; if not available, we'll fallback.
 try:
     from transformers import AutoTokenizer
@@ -355,3 +358,50 @@ class UserSummaryListAPIView(APIView):
         client.close()
 
         return Response({"summaries": summaries}, status=status.HTTP_200_OK)
+
+
+class UserSummaryDeleteAPIView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def delete(self, request, summary_id):
+        user = request.user
+
+        if not user.mongo_collection_name:
+            return Response(
+                {"detail": "No summaries collection found for user."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        try:
+            summary_oid = ObjectId(summary_id)
+        except (InvalidId, TypeError):
+            return Response(
+                {"detail": "Invalid summary id."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            client = MongoClient(os.getenv("MONGO_URI"))
+            db = client[os.getenv("MONGO_DBNAME", "newssum_mongo")]
+            collection = db[user.mongo_collection_name]
+
+            result = collection.delete_one({"_id": summary_oid})
+
+            if result.deleted_count == 0:
+                return Response(
+                    {"detail": "Summary not found."},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+
+        except Exception as e:
+            return Response(
+                {"detail": "Failed to delete summary.", "error": str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+        finally:
+            try:
+                client.close()
+            except Exception:
+                pass
+
+        return Response(status=status.HTTP_204_NO_CONTENT)

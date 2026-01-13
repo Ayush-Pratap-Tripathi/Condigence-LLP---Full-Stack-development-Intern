@@ -10,6 +10,7 @@ import { useNavigate } from "react-router-dom";
 import SummaryModal from "../components/SummaryModal";
 import { runSummarizeFlow } from "../services/summarizeHandler";
 import { getUserSummaries } from "../services/api";
+import { deleteUserSummary } from "../services/api";
 
 const Dashboard = () => {
   const [user, setUser] = useState(null);
@@ -58,6 +59,25 @@ const Dashboard = () => {
       setSummaries(res.summaries || []);
     } catch (err) {
       console.error("Failed to fetch summaries", err);
+    }
+  };
+
+  const handleDeleteSummary = async (summary) => {
+    const confirmed = window.confirm(
+      "Are you sure you want to delete this summary?"
+    );
+    if (!confirmed) return;
+
+    try {
+      await deleteUserSummary(summary._id);
+
+      // Optimistically update UI (no full refetch needed)
+      setSummaries((prev) => prev.filter((s) => s._id !== summary._id));
+
+      toast.success("Summary deleted");
+    } catch (err) {
+      console.error("Delete failed", err);
+      toast.error("Failed to delete summary");
     }
   };
 
@@ -187,6 +207,7 @@ const Dashboard = () => {
         user={user}
         summaries={summaries}
         onOpenSummary={handleOpenSummary}
+        onDeleteSummary={handleDeleteSummary}
         onLogout={handleLogout}
       />
 

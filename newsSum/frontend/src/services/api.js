@@ -56,3 +56,7 @@ export const getUserSummaries = async () => {
   return res.data; // { summaries: [...] }
 };
 
+export const deleteUserSummary = async (summaryId) => {
+  // hits: /api/summaries/<id>/
+  return api.delete(`/../summaries/${summaryId}/`);
+};

@@ -1,17 +1,23 @@
 // frontend/src/components/Sidebar.jsx
 import React, { useState, useContext } from "react";
 import { useNavigate } from "react-router-dom";
-import { AnimatePresence } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import { FiSettings, FiMenu, FiMoreVertical } from "react-icons/fi";
 import DummyProfile from "../constants/dummy_profile.svg";
-import { motion } from "framer-motion";
 import { ThemeContext } from "../contexts/ThemeContext";
 
-const Sidebar = ({ user = {}, summaries = [], onOpenSummary, onLogout }) => {
+const Sidebar = ({
+  user = {},
+  summaries = [],
+  onOpenSummary,
+  onDeleteSummary,
+  onLogout,
+}) => {
   const navigate = useNavigate();
   const [collapsed, setCollapsed] = useState(false);
   const [openSettings, setOpenSettings] = useState(false);
   const { theme, toggleTheme } = useContext(ThemeContext);
+  const [openMenuId, setOpenMenuId] = useState(null);
 
   const avatarSrc = (user && user.avatar) || DummyProfile;
 
@@ -22,6 +28,7 @@ const Sidebar = ({ user = {}, summaries = [], onOpenSummary, onLogout }) => {
       transition={{ type: "spring", stiffness: 240, damping: 26 }}
       className="h-screen bg-white border-r border-gray-100 flex flex-col"
     >
+      {/* Header */}
       <div className="px-3 py-4 flex items-center gap-3">
         <button
           onClick={() => setCollapsed((s) => !s)}
@@ -58,20 +65,30 @@ const Sidebar = ({ user = {}, summaries = [], onOpenSummary, onLogout }) => {
         )}
       </div>
 
-      <div className="flex-1 overflow-auto px-2 py-3">
+      {/* Summaries */}
+      <div
+        className="flex-1 overflow-auto px-2 py-3"
+        onScroll={() => setOpenMenuId(null)}
+      >
         {!collapsed && (
           <div className="px-2 mb-2 text-xs uppercase text-gray-500 font-semibold">
             My Summaries
           </div>
         )}
 
-        <div className="space-y-2">
+        <div className={`space-y-2 ${openMenuId ? "pointer-events-none" : ""}`}>
           {summaries && summaries.length > 0 ? (
             summaries.map((s) => (
               <motion.div
                 key={s._id}
-                whileHover={{ scale: 1.02 }}
-                className="flex items-center justify-between rounded-md hover:bg-surface p-2 cursor-pointer"
+                whileHover={openMenuId === s._id ? {} : { scale: 1.02 }}
+                className={`relative flex items-center justify-between rounded-md p-2 cursor-pointer
+                  ${
+                    openMenuId === s._id
+                      ? "z-50 bg-white pointer-events-auto"
+                      : "hover:bg-surface z-0"
+                  }
+                `}
               >
                 <div
                   className="flex items-center gap-3"
@@ -85,19 +102,59 @@ const Sidebar = ({ user = {}, summaries = [], onOpenSummary, onLogout }) => {
                 </div>
 
                 {!collapsed && (
-                  <div>
+                  <div className="relative">
                     <button
-                      onClick={() => console.log("open menu for", s.id)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setOpenMenuId(openMenuId === s._id ? null : s._id);
+                      }}
                       className="p-1 rounded hover:bg-gray-100"
                     >
                       <FiMoreVertical />
                     </button>
+
+                    {/* Dropdown */}
+                    {openMenuId === s._id && (
+                      <div
+                        className="absolute right-0 mt-2 w-36 bg-white border border-gray-200
+                                   rounded-md shadow-xl z-50 isolation-isolate"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <button
+                          className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100"
+                          onClick={() => {
+                            setOpenMenuId(null);
+                            onOpenSummary?.(s);
+                          }}
+                        >
+                          View
+                        </button>
+
+                        <button
+                          className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100"
+                          onClick={() => {
+                            setOpenMenuId(null);
+                          }}
+                        >
+                          Download
+                        </button>
+
+                        <button
+                          className="w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-red-50"
+                          onClick={() => {
+                            setOpenMenuId(null);
+                            onDeleteSummary?.(s);
+                          }}
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    )}
                   </div>
                 )}
               </motion.div>
             ))
           ) : (
-            // Empty state when user has no summaries
             <div className="px-3 py-6 text-center text-sm text-gray-400">
               {!collapsed
                 ? "No summaries yet. Click 'Summarize' on any article to create one."
@@ -107,6 +164,7 @@ const Sidebar = ({ user = {}, summaries = [], onOpenSummary, onLogout }) => {
         </div>
       </div>
 
+      {/* Settings */}
       <div className="px-3 py-3 border-t border-gray-100">
         <button
           onClick={() => setOpenSettings((v) => !v)}
@@ -135,10 +193,9 @@ const Sidebar = ({ user = {}, summaries = [], onOpenSummary, onLogout }) => {
               >
                 Profile Settings
               </button>
+
               <div className="flex items-center justify-between px-3 py-2">
                 <span>Theme</span>
-
-                {/* Toggle switch */}
                 <button
                   aria-label="Toggle theme"
                   className={
@@ -157,12 +214,14 @@ const Sidebar = ({ user = {}, summaries = [], onOpenSummary, onLogout }) => {
                   />
                 </button>
               </div>
+
               <button
                 onClick={() => navigate("/history")}
                 className="w-full text-left px-3 py-2 rounded hover:bg-gray-50"
               >
                 My History
               </button>
+
               <button
                 onClick={() => onLogout?.()}
                 className="w-full text-left px-3 py-2 rounded hover:bg-red-50 text-red-600"
