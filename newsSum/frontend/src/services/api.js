@@ -60,3 +60,10 @@ export const deleteUserSummary = async (summaryId) => {
   // hits: /api/summaries/<id>/
   return api.delete(`/../summaries/${summaryId}/`);
 };
+
+export const downloadUserSummary = async (summaryId) => {
+  const res = await api.get(`/../summaries/${summaryId}/download/`, {
+    responseType: "blob",
+  });
+  return res;
+};

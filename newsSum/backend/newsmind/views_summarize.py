@@ -19,6 +19,15 @@ from huggingface_hub import InferenceClient
 from bson import ObjectId
 from bson.errors import InvalidId
 
+from django.http import HttpResponse
+from io import BytesIO
+
+from reportlab.lib.pagesizes import A4
+from reportlab.pdfgen import canvas
+from reportlab.lib.units import inch
+from reportlab.lib.utils import ImageReader
+
+
 # Try to import tokenizer for accurate token counting; if not available, we'll fallback.
 try:
     from transformers import AutoTokenizer
@@ -405,3 +414,140 @@ class UserSummaryDeleteAPIView(APIView):
                 pass
 
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class UserSummaryDownloadAPIView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, summary_id):
+        user = request.user
+
+        if not user.mongo_collection_name:
+            return Response(
+                {"detail": "No summaries collection found for user."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        try:
+            summary_oid = ObjectId(summary_id)
+        except (InvalidId, TypeError):
+            return Response(
+                {"detail": "Invalid summary id."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            client = MongoClient(os.getenv("MONGO_URI"))
+            db = client[os.getenv("MONGO_DBNAME", "newssum_mongo")]
+            collection = db[user.mongo_collection_name]
+
+            summary = collection.find_one({"_id": summary_oid})
+
+            if not summary:
+                return Response(
+                    {"detail": "Summary not found."},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+
+        except Exception as e:
+            return Response(
+                {"detail": "Failed to fetch summary.", "error": str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+        finally:
+            try:
+                client.close()
+            except Exception:
+                pass
+
+        # -----------------------------
+        # PDF GENERATION (IN MEMORY)
+        # -----------------------------
+        buffer = BytesIO()
+        pdf = canvas.Canvas(buffer, pagesize=A4)
+        width, height = A4
+
+        margin_x = 50
+        y = height - 50
+
+        # Title
+        pdf.setFont("Helvetica-Bold", 18)
+        pdf.drawString(margin_x, y, summary.get("title", "Summary"))
+        y -= 30
+
+        # Created date
+        created_at = summary.get("created_at")
+        created_str = (
+            created_at.strftime("%d %b %Y, %H:%M UTC")
+            if isinstance(created_at, datetime)
+            else "Unknown date"
+        )
+
+        pdf.setFont("Helvetica", 10)
+        pdf.setFillGray(0.4)
+        pdf.drawString(margin_x, y, f"Created on: {created_str}")
+        y -= 20
+
+        # Reset color
+        pdf.setFillGray(0)
+
+        # Summary text
+        pdf.setFont("Helvetica", 11)
+        text_obj = pdf.beginText(margin_x, y)
+        text_obj.setLeading(16)
+
+        summary_text = summary.get("summary", "")
+        for line in summary_text.split("\n"):
+            text_obj.textLine(line)
+
+            # Create new page if space runs out
+            if text_obj.getY() < 80:
+                pdf.drawText(text_obj)
+                pdf.showPage()
+                pdf.setFont("Helvetica", 11)
+                text_obj = pdf.beginText(margin_x, height - 50)
+                text_obj.setLeading(16)
+
+        pdf.drawText(text_obj)
+
+        # Source URL
+        source_url = summary.get("url")
+        if source_url:
+            pdf.showPage()
+            pdf.setFont("Helvetica", 10)
+            pdf.drawString(margin_x, height - 50, f"Source: {source_url}")
+
+        # Footer logo (bottom-right)
+        logo_path = os.path.join(
+            os.path.dirname(__file__),
+            "constants",
+            "logo.png",
+        )
+
+        try:
+            if os.path.exists(logo_path):
+                logo = ImageReader(logo_path)
+                pdf.drawImage(
+                    logo,
+                    width - 120,
+                    30,
+                    width=80,
+                    preserveAspectRatio=True,
+                    mask="auto",
+                )
+        except Exception:
+            print("Failed to add logo to PDF.")
+
+        pdf.showPage()
+        pdf.save()
+
+        buffer.seek(0)
+
+        filename = f"summary_{summary_id}.pdf"
+        response = HttpResponse(
+            buffer.getvalue(),
+            content_type="application/pdf",
+        )
+        response["Content-Disposition"] = f'attachment; filename="{filename}"'
+
+        return response

@@ -20,6 +20,7 @@ from django.urls import path, include
 from newsmind.views_summarize import (
     UserSummaryListAPIView,
     UserSummaryDeleteAPIView,
+    UserSummaryDownloadAPIView,
 )
 
 
@@ -28,4 +29,7 @@ urlpatterns = [
     path("api/auth/", include("newsmind.urls")),
     path("api/summaries/", UserSummaryListAPIView.as_view()),
     path("api/summaries/<str:summary_id>/", UserSummaryDeleteAPIView.as_view()),
+    path(
+        "api/summaries/<str:summary_id>/download/", UserSummaryDownloadAPIView.as_view()
+    ),
 ]

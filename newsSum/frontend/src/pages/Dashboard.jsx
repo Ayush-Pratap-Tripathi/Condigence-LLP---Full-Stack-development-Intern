@@ -11,6 +11,8 @@ import SummaryModal from "../components/SummaryModal";
 import { runSummarizeFlow } from "../services/summarizeHandler";
 import { getUserSummaries } from "../services/api";
 import { deleteUserSummary } from "../services/api";
+import { downloadUserSummary } from "../services/api";
+import triggerFileDownload from "../services/downloadHelper";
 
 const Dashboard = () => {
   const [user, setUser] = useState(null);
@@ -35,8 +37,16 @@ const Dashboard = () => {
         setLoading: setModalLoading,
         setSummary: setModalSummary,
         toast,
-        onSaved: () => {
-          // optionally refresh sidebar summaries list
+        onSaved: ({ saved_id }) => {
+          // 🔑 IMPORTANT: attach the saved _id immediately
+          setSavedSummaryArticle({
+            _id: saved_id,
+            title: article.title,
+            summary: modalSummary, // or set later (see note below)
+            source_url: article.url,
+            created_at: new Date().toISOString(),
+          });
+
           fetchSummaries();
         },
       });
@@ -78,6 +88,26 @@ const Dashboard = () => {
     } catch (err) {
       console.error("Delete failed", err);
       toast.error("Failed to delete summary");
+    }
+  };
+
+  const handleDownloadSummary = async (summary) => {
+    try {
+      toast.info("Preparing download…");
+
+      const res = await downloadUserSummary(summary._id);
+
+      const filename =
+        res.headers["content-disposition"]
+          ?.split("filename=")[1]
+          ?.replaceAll('"', "") || `summary_${summary._id}.pdf`;
+
+      triggerFileDownload(res.data, filename);
+
+      toast.success("Download started");
+    } catch (err) {
+      console.error("Download failed", err);
+      toast.error("Failed to download summary");
     }
   };
 
@@ -141,12 +171,7 @@ const Dashboard = () => {
   };
 
   const handleOpenSummary = (s) => {
-    setSavedSummaryArticle({
-      title: "Saved Summary",
-      source: "Your Library",
-      url: s.source_url,
-      publishedAt: s.created_at,
-    });
+    setSavedSummaryArticle(s); // 🔑 keep the FULL object (includes _id)
 
     setModalSummary(s.summary);
     setModalLoading(false);
@@ -208,6 +233,7 @@ const Dashboard = () => {
         summaries={summaries}
         onOpenSummary={handleOpenSummary}
         onDeleteSummary={handleDeleteSummary}
+        onDownloadSummary={handleDownloadSummary}
         onLogout={handleLogout}
       />
 
@@ -327,7 +353,11 @@ const Dashboard = () => {
         loading={modalLoading}
         summary={modalSummary}
         onDownload={() => {
-          toast.info("Download will be implemented soon.");
+          if (!savedSummaryArticle?._id) {
+            toast.error("This summary is not saved yet");
+            return;
+          }
+          handleDownloadSummary(savedSummaryArticle);
         }}
       />
     </div>

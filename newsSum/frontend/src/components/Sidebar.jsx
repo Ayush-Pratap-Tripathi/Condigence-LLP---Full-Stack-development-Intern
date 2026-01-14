@@ -11,6 +11,7 @@ const Sidebar = ({
   summaries = [],
   onOpenSummary,
   onDeleteSummary,
+  onDownloadSummary,
   onLogout,
 }) => {
   const navigate = useNavigate();
@@ -134,6 +135,7 @@ const Sidebar = ({
                           className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100"
                           onClick={() => {
                             setOpenMenuId(null);
+                            onDownloadSummary?.(s);
                           }}
                         >
                           Download
