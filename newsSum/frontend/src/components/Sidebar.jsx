@@ -218,13 +218,6 @@ const Sidebar = ({
               </div>
 
               <button
-                onClick={() => navigate("/history")}
-                className="w-full text-left px-3 py-2 rounded hover:bg-gray-50"
-              >
-                My History
-              </button>
-
-              <button
                 onClick={() => onLogout?.()}
                 className="w-full text-left px-3 py-2 rounded hover:bg-red-50 text-red-600"
               >
