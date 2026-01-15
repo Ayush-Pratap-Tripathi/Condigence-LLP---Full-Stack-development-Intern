@@ -38,15 +38,13 @@ const Dashboard = () => {
         setSummary: setModalSummary,
         toast,
         onSaved: ({ saved_id }) => {
-          // 🔑 IMPORTANT: attach the saved _id immediately
           setSavedSummaryArticle({
             _id: saved_id,
             title: article.title,
-            summary: modalSummary, // or set later (see note below)
+            summary: modalSummary,
             source_url: article.url,
             created_at: new Date().toISOString(),
           });
-
           fetchSummaries();
         },
       });
@@ -80,10 +78,7 @@ const Dashboard = () => {
 
     try {
       await deleteUserSummary(summary._id);
-
-      // Optimistically update UI (no full refetch needed)
       setSummaries((prev) => prev.filter((s) => s._id !== summary._id));
-
       toast.success("Summary deleted");
     } catch (err) {
       console.error("Delete failed", err);
@@ -94,7 +89,6 @@ const Dashboard = () => {
   const handleDownloadSummary = async (summary) => {
     try {
       toast.info("Preparing download…");
-
       const res = await downloadUserSummary(summary._id);
 
       const filename =
@@ -103,7 +97,6 @@ const Dashboard = () => {
           ?.replaceAll('"', "") || `summary_${summary._id}.pdf`;
 
       triggerFileDownload(res.data, filename);
-
       toast.success("Download started");
     } catch (err) {
       console.error("Download failed", err);
@@ -111,57 +104,11 @@ const Dashboard = () => {
     }
   };
 
-  const getYesterdayDateInKolkata = () => {
-    try {
-      // produce "YYYY-MM-DD" for current date in Asia/Kolkata
-      const todayStr = new Intl.DateTimeFormat("en-CA", {
-        timeZone: "Asia/Kolkata",
-      }).format(new Date()); // e.g. "2025-12-04"
-
-      // build a Date using the components (safe: local midnight for that Y-M-D)
-      const [yyyy, mm, dd] = todayStr.split("-").map((s) => Number(s));
-      const d = new Date(yyyy, mm - 1, dd);
-
-      // subtract one day
-      d.setDate(d.getDate() - 1);
-
-      const y = d.getFullYear();
-      const m = String(d.getMonth() + 1).padStart(2, "0");
-      const day = String(d.getDate()).padStart(2, "0");
-      return `${y}-${m}-${day}`;
-    } catch (e) {
-      // fallback: use local yesterday (less accurate if user isn't in IST)
-      const d = new Date();
-      d.setDate(d.getDate() - 1);
-      const y = d.getFullYear();
-      const m = String(d.getMonth() + 1).padStart(2, "0");
-      const day = String(d.getDate()).padStart(2, "0");
-      return `${y}-${m}-${day}`;
-    }
-  };
-
-  const fetchArticles = async (opts = {}) => {
+  const fetchArticles = async () => {
     setLoading(true);
     try {
-      // compute date (allow override via opts.date for testing)
-      const dateToUse = opts.date || getYesterdayDateInKolkata();
-
-      const params = {
-        max: opts.max || 12,
-        page: opts.page || 1,
-        q: opts.q || undefined,
-        category: opts.category || undefined,
-        country: opts.country || undefined,
-        lang: opts.lang || "en",
-        sortby: opts.sortby || undefined,
-        // IMPORTANT: pass yesterday's date
-        date: dateToUse,
-      };
-
-      // adjust path if your axios baseURL differs; this assumes api.get("/news/") maps to /api/auth/news/
-      const res = await api.get("/news/", { params });
-      const articles = res.data.articles || [];
-      setArticles(articles);
+      const res = await api.get("/news/");
+      setArticles(res.data.articles || []);
     } catch (err) {
       console.error("Failed to load news", err);
       toast.error("Failed to load news");
@@ -170,28 +117,9 @@ const Dashboard = () => {
     }
   };
 
-  const handleOpenSummary = (s) => {
-    setSavedSummaryArticle(s); // 🔑 keep the FULL object (includes _id)
-
-    setModalSummary(s.summary);
-    setModalLoading(false);
-    setModalOpen(true);
-  };
-
-  const handleLogout = () => {
-    localStorage.removeItem("accessToken");
-    localStorage.removeItem("refreshToken");
-    localStorage.removeItem("user");
-    toast.info("Logged out");
-    window.location.href = "/login";
-  };
-
-  // --- Small child component to handle image load errors and display message ---
   function ArticleImage({ src, title }) {
     const [error, setError] = useState(null);
-    const [loaded, setLoaded] = useState(false);
 
-    // If no src provided, render the "No image" placeholder
     if (!src) {
       return (
         <div className="w-full h-full flex items-center justify-center text-gray-400">
@@ -200,9 +128,7 @@ const Dashboard = () => {
       );
     }
 
-    // If error occurred while loading, show the requested message
     if (error) {
-      // Use the src (URL) as the "error" information because browsers don't expose HTTP status in img onError
       return (
         <div className="w-full h-full flex items-center justify-center text-sm text-red-500 px-3 text-center">
           {`Failed to load image: ${src}`}
@@ -215,13 +141,7 @@ const Dashboard = () => {
         src={src}
         alt={title}
         className="w-full h-full object-cover"
-        onLoad={() => setLoaded(true)}
-        onError={(e) => {
-          // mark error; browsers don't provide detailed error info for images
-          // but we can show the URL as the error detail as requested
-          setError(true);
-        }}
-        // avoid infinite onError loop if src replaced; we don't change src here
+        onError={() => setError(true)}
       />
     );
   }
@@ -231,20 +151,28 @@ const Dashboard = () => {
       <Sidebar
         user={user}
         summaries={summaries}
-        onOpenSummary={handleOpenSummary}
+        onOpenSummary={(s) => {
+          setSavedSummaryArticle(s);
+          setModalSummary(s.summary);
+          setModalLoading(false);
+          setModalOpen(true);
+        }}
         onDeleteSummary={handleDeleteSummary}
         onDownloadSummary={handleDownloadSummary}
-        onLogout={handleLogout}
+        onLogout={() => {
+          localStorage.clear();
+          toast.info("Logged out");
+          window.location.href = "/login";
+        }}
       />
 
       <main className="flex-1 overflow-auto bg-gray-50">
         <Header />
 
         <div className="p-6">
-          {/* Top section */}
           <div className="flex items-center justify-between mb-6">
             <div>
-              <h1 className="text-2xl font-semibold text-gray-900">
+              <h1 className="text-2xl font-semibold text-gray-700">
                 Discover news
               </h1>
               <p className="text-sm text-gray-500">
@@ -252,17 +180,14 @@ const Dashboard = () => {
               </p>
             </div>
 
-            <div>
-              <button
-                onClick={fetchArticles}
-                className="px-4 py-2 rounded bg-primary text-blue-700"
-              >
-                Refresh
-              </button>
-            </div>
+            <button
+              onClick={fetchArticles}
+              className="px-4 py-2 rounded bg-gray-100 text-gray-700 hover:bg-gray-200"
+            >
+              Refresh
+            </button>
           </div>
 
-          {/* Content Section */}
           {loading ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
               {Array.from({ length: 6 }).map((_, i) => (
@@ -282,7 +207,7 @@ const Dashboard = () => {
                   />
                 </svg>
               </div>
-              <h3 className="text-lg font-semibold text-gray-800 mb-2">
+              <h3 className="text-lg font-semibold text-gray-700 mb-2">
                 No articles found
               </h3>
               <p className="text-sm text-gray-500">
@@ -303,7 +228,7 @@ const Dashboard = () => {
                   <div className="h-40 bg-gray-100 rounded mb-3 overflow-hidden">
                     <ArticleImage src={a.image} title={a.title} />
                   </div>
-                  <h3 className="font-semibold text-gray-900">{a.title}</h3>
+                  <h3 className="font-semibold text-gray-700">{a.title}</h3>
                   <p className="text-sm text-gray-600 flex-1">
                     {a.description}
                   </p>
@@ -312,7 +237,7 @@ const Dashboard = () => {
                     <div className="flex gap-2">
                       <button
                         onClick={() => openAndSummarize(a)}
-                        className="px-3 py-1 rounded bg-primary text-white text-sm"
+                        className="px-3 py-1 rounded bg-gray-100 text-gray-700 text-sm hover:bg-gray-200"
                       >
                         Summarize
                       </button>
@@ -320,7 +245,6 @@ const Dashboard = () => {
                       <button
                         onClick={() => {
                           try {
-                            // store article in sessionStorage as fallback for reload
                             sessionStorage.setItem(
                               "currentArticle",
                               JSON.stringify(a)
@@ -328,7 +252,7 @@ const Dashboard = () => {
                           } catch (e) {}
                           navigate("/article", { state: { article: a } });
                         }}
-                        className="px-3 py-1 rounded border text-sm"
+                        className="px-3 py-1 rounded border border-gray-100 text-gray-600 text-sm hover:bg-gray-50"
                       >
                         Read full
                       </button>
@@ -341,6 +265,7 @@ const Dashboard = () => {
           )}
         </div>
       </main>
+
       <SummaryModal
         open={modalOpen}
         onClose={() => {

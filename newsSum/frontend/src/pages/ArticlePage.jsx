@@ -21,11 +21,9 @@ export default function ArticlePage() {
   const [modalSummary, setModalSummary] = useState(null);
 
   useEffect(() => {
-    // priority: location.state (navigate passed article), then sessionStorage fallback
     const fromState = location?.state?.article;
     if (fromState) {
       setArticle(fromState);
-      // keep in sessionStorage as fallback (in case user reloads)
       try {
         sessionStorage.setItem("currentArticle", JSON.stringify(fromState));
       } catch (e) {}
@@ -33,7 +31,6 @@ export default function ArticlePage() {
       return;
     }
 
-    // fallback: try sessionStorage
     try {
       const raw = sessionStorage.getItem("currentArticle");
       if (raw) {
@@ -45,16 +42,14 @@ export default function ArticlePage() {
       console.warn("Failed to read article from sessionStorage", e);
     }
 
-    // nothing found
     setLoading(false);
   }, [location]);
 
   const handleBack = () => {
-    // clear fallback storage and go back
     try {
       sessionStorage.removeItem("currentArticle");
     } catch (e) {}
-    navigate(-1); // go back to previous page
+    navigate(-1);
   };
 
   const handleSummarize = async () => {
@@ -66,9 +61,7 @@ export default function ArticlePage() {
         setLoading: setModalLoading,
         setSummary: setModalSummary,
         toast,
-        onSaved: () => {
-          // refresh sidebar summaries (if you have fetchSummaries passed down)
-        },
+        onSaved: () => {},
       });
     } catch (e) {
       console.log(e);
@@ -88,16 +81,18 @@ export default function ArticlePage() {
 
   if (!article) {
     return (
-      <div className="min-h-screen p-6">
+      <div className="min-h-screen p-6 bg-gray-50">
         <div className="max-w-3xl mx-auto text-center">
-          <h3 className="text-lg font-semibold">No article to display</h3>
+          <h3 className="text-lg font-semibold text-gray-700">
+            No article to display
+          </h3>
           <p className="text-sm text-gray-500 mt-2">
             Open an article from the dashboard or go back.
           </p>
           <div className="mt-4">
             <button
               onClick={handleBack}
-              className="px-4 py-2 rounded bg-primary text-white"
+              className="px-4 py-2 rounded bg-gray-100 text-gray-700 hover:bg-gray-200"
             >
               Back
             </button>
@@ -111,11 +106,8 @@ export default function ArticlePage() {
     ? new Date(article.publishedAt).toLocaleString()
     : "";
 
-  // Small internal component to handle image loading errors gracefully.
-  // Shows the same "Failed to load image: <url>" message as on the dashboard when load fails.
   function ArticleImage({ src, title }) {
     const [error, setError] = useState(null);
-    const [loaded, setLoaded] = useState(false);
 
     if (!src) {
       return (
@@ -138,10 +130,7 @@ export default function ArticlePage() {
         src={src}
         alt={title}
         className="w-full max-h-96 object-cover"
-        onLoad={() => setLoaded(true)}
-        onError={() => {
-          setError(true);
-        }}
+        onError={() => setError(true)}
       />
     );
   }
@@ -169,12 +158,12 @@ export default function ArticlePage() {
             <div className="flex items-center gap-3">
               <button
                 onClick={handleBack}
-                className="p-2 rounded-md hover:bg-gray-100 border"
+                className="p-2 rounded-md hover:bg-gray-100 border border-gray-100 text-gray-700"
               >
                 ← Back
               </button>
               <div>
-                <h1 className="text-2xl font-semibold text-gray-900">
+                <h1 className="text-2xl font-semibold text-gray-700">
                   {article.title}
                 </h1>
                 <p className="text-sm text-gray-500">
@@ -187,7 +176,7 @@ export default function ArticlePage() {
               <button
                 onClick={handleSummarize}
                 disabled={summarizing}
-                className="px-4 py-2 rounded-md bg-primary text-blue-700 hover:brightness-95 flex items-center gap-2"
+                className="px-4 py-2 rounded-md bg-gray-100 text-gray-700 hover:bg-gray-200 flex items-center gap-2"
               >
                 {summarizing ? "Summarizing…" : "Summarize"}
               </button>
@@ -195,7 +184,6 @@ export default function ArticlePage() {
           </div>
 
           <div className="bg-white rounded-lg shadow overflow-hidden">
-            {/* Use the ArticleImage component to render the image with graceful error handling */}
             <ArticleImage src={article.image} title={article.title} />
 
             <div className="p-6">
@@ -206,15 +194,11 @@ export default function ArticlePage() {
               ) : null}
 
               <div className="prose max-w-none text-gray-700">
-                {/* article.content may include truncated text with [NN chars]. Show as-is.
-                    If you have 'raw' full content in article.raw, use that. */}
                 <p>
                   {article.content ||
                     article.description ||
                     "Full content not available."}
                 </p>
-
-                {/* if article.raw has more fields (like full text), you can render them here */}
               </div>
 
               <div className="mt-6 text-sm text-gray-500">
@@ -228,7 +212,7 @@ export default function ArticlePage() {
                       href={article.url}
                       target="_blank"
                       rel="noreferrer"
-                      className="text-primary underline"
+                      className="text-indigo-600 underline"
                     >
                       Open original
                     </a>
@@ -239,6 +223,7 @@ export default function ArticlePage() {
           </div>
         </motion.div>
       </main>
+
       <SummaryModal
         open={modalOpen}
         onClose={() => {

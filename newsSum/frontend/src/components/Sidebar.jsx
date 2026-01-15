@@ -34,7 +34,7 @@ const Sidebar = ({
         <button
           onClick={() => setCollapsed((s) => !s)}
           aria-label="Toggle sidebar"
-          className="p-2 rounded hover:bg-gray-100"
+          className="p-2 rounded hover:bg-gray-100 text-gray-600"
         >
           <FiMenu size={18} />
         </button>
@@ -44,10 +44,10 @@ const Sidebar = ({
             <img
               src={avatarSrc}
               alt="avatar"
-              className="w-12 h-12 rounded-full object-cover border"
+              className="w-12 h-12 rounded-full object-cover border border-gray-200"
             />
             <div>
-              <div className="font-medium text-gray-900 text-sm">
+              <div className="font-medium text-gray-700 text-sm">
                 {user?.username || "Anonymous"}
               </div>
               <div className="text-xs text-gray-500">{user?.email || ""}</div>
@@ -60,7 +60,7 @@ const Sidebar = ({
             <img
               src={avatarSrc}
               alt="avatar"
-              className="w-8 h-8 rounded-full object-cover border"
+              className="w-8 h-8 rounded-full object-cover border border-gray-200"
             />
           </div>
         )}
@@ -87,7 +87,7 @@ const Sidebar = ({
                   ${
                     openMenuId === s._id
                       ? "z-50 bg-white pointer-events-auto"
-                      : "hover:bg-surface z-0"
+                      : "hover:bg-gray-50 z-0"
                   }
                 `}
               >
@@ -96,7 +96,7 @@ const Sidebar = ({
                   onClick={() => onOpenSummary?.(s)}
                 >
                   {!collapsed && (
-                    <div className="text-sm text-gray-800 truncate">
+                    <div className="text-sm text-gray-600 truncate">
                       {s.title.slice(0, 25) + "..."}
                     </div>
                   )}
@@ -109,12 +109,11 @@ const Sidebar = ({
                         e.stopPropagation();
                         setOpenMenuId(openMenuId === s._id ? null : s._id);
                       }}
-                      className="p-1 rounded hover:bg-gray-100"
+                      className="p-1 rounded hover:bg-gray-100 text-gray-600"
                     >
                       <FiMoreVertical />
                     </button>
 
-                    {/* Dropdown */}
                     {openMenuId === s._id && (
                       <div
                         className="absolute right-0 mt-2 w-36 bg-white border border-gray-200
@@ -122,7 +121,7 @@ const Sidebar = ({
                         onClick={(e) => e.stopPropagation()}
                       >
                         <button
-                          className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100"
+                          className="w-full text-left px-3 py-2 text-sm text-gray-600 hover:bg-gray-50"
                           onClick={() => {
                             setOpenMenuId(null);
                             onOpenSummary?.(s);
@@ -132,7 +131,7 @@ const Sidebar = ({
                         </button>
 
                         <button
-                          className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100"
+                          className="w-full text-left px-3 py-2 text-sm text-gray-600 hover:bg-gray-50"
                           onClick={() => {
                             setOpenMenuId(null);
                             onDownloadSummary?.(s);
@@ -170,7 +169,7 @@ const Sidebar = ({
       <div className="px-3 py-3 border-t border-gray-100">
         <button
           onClick={() => setOpenSettings((v) => !v)}
-          className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-gray-50 w-full"
+          className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-gray-50 w-full text-gray-600"
         >
           <FiSettings />
           <span className={`text-sm ${collapsed ? "hidden" : ""}`}>
@@ -187,7 +186,7 @@ const Sidebar = ({
               className="mt-2 rounded bg-white shadow p-2"
             >
               <button
-                className="w-full text-left px-3 py-2 rounded hover:bg-gray-50"
+                className="w-full text-left px-3 py-2 rounded hover:bg-gray-50 text-gray-600"
                 onClick={() => {
                   setOpenSettings(false);
                   navigate("/profile");
@@ -196,7 +195,7 @@ const Sidebar = ({
                 Profile Settings
               </button>
 
-              <div className="flex items-center justify-between px-3 py-2">
+              <div className="flex items-center justify-between px-3 py-2 text-gray-600">
                 <span>Theme</span>
                 <button
                   aria-label="Toggle theme"

@@ -12,7 +12,7 @@ import { FiX, FiDownload } from "react-icons/fi";
  * - article: object (title, publishedAt, url)
  * - loading: boolean
  * - summary: string|null
- * - onDownload: () => void 
+ * - onDownload: () => void
  */
 export default function SummaryModal({
   open,
@@ -40,14 +40,14 @@ export default function SummaryModal({
         initial={{ opacity: 0, y: 12, scale: 0.98 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         exit={{ opacity: 0, y: 8 }}
-        className="relative z-10 max-w-3xl w-full mx-4 bg-white dark:bg-gray-900 rounded-2xl shadow-2xl overflow-hidden"
+        className="relative z-10 max-w-3xl w-full mx-4 bg-white rounded-2xl shadow-2xl overflow-hidden"
       >
-        <div className="flex items-start justify-between px-5 py-4 border-b border-gray-100 dark:border-gray-800">
+        <div className="flex items-start justify-between px-5 py-4 border-b border-gray-100">
           <div>
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+            <h3 className="text-lg font-semibold text-gray-700">
               {article?.title || "Summary"}
             </h3>
-            <div className="text-xs text-gray-500 dark:text-gray-400">
+            <div className="text-xs text-gray-500">
               {published} •{" "}
               {article?.source?.name || article?.source || "Unknown source"}
             </div>
@@ -59,7 +59,7 @@ export default function SummaryModal({
                 if (onDownload) onDownload();
               }}
               title="Download summary as PDF"
-              className="px-3 py-1 rounded-md bg-primary/10 text-primary text-sm flex items-center gap-2"
+              className="px-3 py-1 rounded-md bg-indigo-50 text-indigo-600 text-sm flex items-center gap-2"
             >
               <FiDownload />
               <span className="hidden sm:inline">Download</span>
@@ -67,7 +67,7 @@ export default function SummaryModal({
 
             <button
               onClick={onClose}
-              className="p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-800"
+              className="p-2 rounded hover:bg-gray-100 text-gray-600"
               title="Close"
             >
               <FiX size={18} />
@@ -83,8 +83,7 @@ export default function SummaryModal({
               <div className="h-40 bg-gray-100 rounded animate-pulse" />
             </div>
           ) : summary ? (
-            <div className="prose max-w-none text-gray-800 dark:text-gray-200">
-              {/* Summary may contain newlines; render paragraphs */}
+            <div className="prose max-w-none text-gray-700">
               {summary.split("\n\n").map((p, i) => (
                 <p key={i}>{p}</p>
               ))}
@@ -96,7 +95,7 @@ export default function SummaryModal({
                     href={article.url}
                     target="_blank"
                     rel="noreferrer"
-                    className="text-primary underline"
+                    className="text-indigo-600 underline"
                   >
                     Open original
                   </a>
@@ -110,10 +109,10 @@ export default function SummaryModal({
           )}
         </div>
 
-        <div className="flex items-center justify-end px-5 py-3 border-t border-gray-100 dark:border-gray-800">
+        <div className="flex items-center justify-end px-5 py-3 border-t border-gray-100">
           <button
             onClick={onClose}
-            className="px-4 py-2 rounded bg-gray-100 dark:bg-gray-800 text-sm"
+            className="px-4 py-2 rounded bg-gray-100 text-sm text-gray-700"
           >
             Close
           </button>
