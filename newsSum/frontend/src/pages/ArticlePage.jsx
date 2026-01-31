@@ -7,6 +7,10 @@ import Header from "../components/Header";
 import Sidebar from "../components/Sidebar";
 import SummaryModal from "../components/SummaryModal";
 import { runSummarizeFlow } from "../services/summarizeHandler";
+import { deleteUserSummary } from "../services/api";
+import { downloadUserSummary } from "../services/api";
+import triggerFileDownload from "../services/downloadHelper";
+import { getUserSummaries } from "../services/api";
 
 export default function ArticlePage() {
   const location = useLocation();
@@ -15,7 +19,8 @@ export default function ArticlePage() {
   const [article, setArticle] = useState(null);
   const [loading, setLoading] = useState(true);
   const [summarizing, setSummarizing] = useState(false);
-
+  const [summaries, setSummaries] = useState([]);
+  const [savedSummaryArticle, setSavedSummaryArticle] = useState(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [modalLoading, setModalLoading] = useState(false);
   const [modalSummary, setModalSummary] = useState(null);
@@ -65,6 +70,53 @@ export default function ArticlePage() {
       });
     } catch (e) {
       console.log(e);
+    }
+  };
+
+  useEffect(() => {
+      fetchSummaries();
+    }, []);
+
+  const fetchSummaries = async () => {
+      try {
+        const res = await getUserSummaries();
+        setSummaries(res.summaries || []);
+      } catch (err) {
+        console.error("Failed to fetch summaries", err);
+      }
+    };
+
+  const handleDeleteSummary = async (summary) => {
+      const confirmed = window.confirm(
+        "Are you sure you want to delete this summary?"
+      );
+      if (!confirmed) return;
+  
+      try {
+        await deleteUserSummary(summary._id);
+        setSummaries((prev) => prev.filter((s) => s._id !== summary._id));
+        toast.success("Summary deleted");
+      } catch (err) {
+        console.error("Delete failed", err);
+        toast.error("Failed to delete summary");
+      }
+    };
+
+    const handleDownloadSummary = async (summary) => {
+    try {
+      toast.info("Preparing download…");
+      const res = await downloadUserSummary(summary._id);
+
+      const filename =
+        res.headers["content-disposition"]
+          ?.split("filename=")[1]
+          ?.replaceAll('"', "") || `summary_${summary._id}.pdf`;
+
+      triggerFileDownload(res.data, filename);
+      toast.success("Download started");
+    } catch (err) {
+      console.error("Download failed", err);
+      toast.error("Failed to download summary");
     }
   };
 
@@ -139,9 +191,18 @@ export default function ArticlePage() {
     <div className="flex h-screen">
       <Sidebar
         user={JSON.parse(localStorage.getItem("user") || "null")}
-        summaries={[]}
+        summaries={summaries}
+        onOpenSummary={(s) => {
+          setSavedSummaryArticle(s);
+          setModalSummary(s.summary);
+          setModalLoading(false);
+          setModalOpen(true);
+        }}
+        onDeleteSummary={handleDeleteSummary}
+        onDownloadSummary={handleDownloadSummary}
         onLogout={() => {
           localStorage.clear();
+          toast.info("Logged out");
           window.location.href = "/login";
         }}
       />
