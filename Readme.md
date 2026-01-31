@@ -21,8 +21,8 @@ Each folder contains the respective project’s source code, backend, frontend, 
 **Solution:** A portal that uses **transformer-based NLP models** to generate concise news summaries.  
 - **Backend:** Django (Auth, APIs, article management)  
 - **Frontend:** React (Responsive news display & summaries)  
-- **Database:** MongoDB  
-- **AI Models:** BERT / Pegasus (Extractive & abstractive summarization)  
+- **Database:** MongoDB + MySQL
+- **AI Models:** Pegasus (Extractive & abstractive summarization)  
 
 **Outcome:**  
 - High-quality summaries for quick information consumption.  
@@ -37,7 +37,7 @@ Each folder contains the respective project’s source code, backend, frontend, 
 - **Backend:** Spring Boot (APIs for upload, parsing, scoring)  
 - **Frontend:** React (HR dashboard with filters, analytics)  
 - **Database:** MongoDB (Resumes, job descriptions, scores)  
-- **AI Models:** NLP with spaCy / Hugging Face / TensorFlow (Semantic similarity, embeddings, ranking)  
+- **AI Models:** sentence-transformers/all-MiniLM-L6-v2
 
 **Outcome:**  
 - Saves screening time and ensures fair candidate evaluation.  
